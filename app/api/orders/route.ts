@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ordersQueries } from "@/lib/database/orders.queries";
+import { dealersQueries } from "@/lib/database/dealers.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import { generateOrderNumber } from "@/lib/utils";
+import { ORDER_ELIGIBLE_STATUSES } from "@/constants/dealer-status.constants";
 
 export const GET = withAuth(
   async (req: NextRequest, _ctx, _auth) => {
@@ -34,6 +36,12 @@ export const POST = withAuth(
     }
 
     const db = getSupabaseAdminClient();
+
+    const dealer = await dealersQueries.getById(db, body.dealerId);
+    if (!dealer) return apiError("Dealer not found", 404);
+    if (!ORDER_ELIGIBLE_STATUSES.includes(dealer.status as typeof ORDER_ELIGIBLE_STATUSES[number])) {
+      return apiError(`Orders can only be placed for active dealers (current status: ${dealer.status})`, 422);
+    }
 
     const order = await ordersQueries.create(
       db,

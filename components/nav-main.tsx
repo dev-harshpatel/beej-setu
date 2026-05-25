@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronRightIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useStoreHydrated } from "@/hooks/use-store-hydrated";
@@ -49,6 +58,40 @@ export function NavMain({ items }: { items: NavItem[] }) {
             pathname === item.href || pathname.startsWith(item.href + "/");
           const isOrders = item.href === ROUTES.ORDERS.ROOT;
           const badgeCount = isOrders ? pendingOrdersCount : 0;
+
+          if (item.children?.length) {
+            return (
+              <SidebarMenuItem key={item.label}>
+                <Collapsible defaultOpen={isActive} className="group/collapsible w-full">
+                  <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} tooltip={item.label} />}>
+                    <item.icon />
+                    <span className="flex-1">{item.label}</span>
+                    <ChevronRightIcon className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {item.children.map((child) => {
+                        const childActive =
+                          pathname === child.href ||
+                          pathname.startsWith(child.href + "/");
+                        return (
+                          <SidebarMenuSubItem key={child.label}>
+                            <SidebarMenuSubButton
+                              render={<Link href={child.href} />}
+                              isActive={childActive}
+                            >
+                              {child.icon && <child.icon className="size-3.5" />}
+                              <span>{child.label}</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenuItem>
+            );
+          }
 
           return (
             <SidebarMenuItem key={item.label}>

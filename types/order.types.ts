@@ -2,15 +2,9 @@ import type { ID, Timestamps } from "./common.types";
 import type { Dealer } from "./dealer.types";
 import type { SeedProduct } from "./seed.types";
 import type { User } from "./auth.types";
+import { type OrderStatusValue } from "@/constants/order-status.constants";
 
-export type OrderStatus =
-  | "DRAFT"
-  | "PENDING"
-  | "CONFIRMED"
-  | "PROCESSING"
-  | "SHIPPED"
-  | "DELIVERED"
-  | "CANCELLED";
+export type OrderStatus = OrderStatusValue;
 
 export interface OrderItem {
   id: ID;
@@ -52,20 +46,8 @@ export type UpdateOrderPayload = Partial<
   Omit<CreateOrderPayload, "dealerId"> & { status: OrderStatus }
 >;
 
-export interface OrderStatusLabel {
-  label: string;
-  color: string;
-}
-
-export const ORDER_STATUS_CONFIG: Record<OrderStatus, OrderStatusLabel> = {
-  DRAFT: { label: "Draft", color: "gray" },
-  PENDING: { label: "Pending", color: "yellow" },
-  CONFIRMED: { label: "Confirmed", color: "blue" },
-  PROCESSING: { label: "Processing", color: "orange" },
-  SHIPPED: { label: "Shipped", color: "purple" },
-  DELIVERED: { label: "Delivered", color: "green" },
-  CANCELLED: { label: "Cancelled", color: "red" },
-};
+// Re-export from constants so existing imports of ORDER_STATUS_CONFIG keep working
+export { ORDER_STATUS_LABELS as ORDER_STATUS_CONFIG } from "@/constants/order-status.constants";
 
 // ─── DB-backed joined types (used in admin orders page) ──────────────────────
 import type { DealerRow, ProfileRow, SeedProductRow, CropRow, OrderRow, OrderItemRow } from "./database.types";

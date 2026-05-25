@@ -2,7 +2,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
+import type { SeedProductWithCropRow, SeedStockSummary } from "@/lib/database/seeds.queries";
+
+function StockStatusBadge({ stock, packetsPerBag }: { stock: SeedStockSummary[]; packetsPerBag: number }) {
+  const totalPackets = stock.reduce(
+    (sum, s) => sum + s.bag_stock * packetsPerBag + s.packet_stock,
+    0
+  );
+
+  if (totalPackets === 0) {
+    return (
+      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive">
+        Out of Stock
+      </span>
+    );
+  }
+  if (totalPackets < packetsPerBag) {
+    return (
+      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+        Low Stock
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-accent text-accent-foreground">
+      In Stock
+    </span>
+  );
+}
 
 interface SeedsTableProps {
   products: SeedProductWithCropRow[];
@@ -55,13 +82,7 @@ export function SeedsTable({ products, loading }: SeedsTableProps) {
                 <TableCell className="text-right tabular-nums font-medium">{p.pack_size}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">{p.packets_per_bag}</TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.status === "ACTIVE"
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {p.status === "ACTIVE" ? "Active" : "Inactive"}
-                  </span>
+                  <StockStatusBadge stock={p.stock ?? []} packetsPerBag={p.packets_per_bag} />
                 </TableCell>
               </TableRow>
           ))}

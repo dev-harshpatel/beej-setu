@@ -38,9 +38,10 @@ interface AddUserDialogProps {
 }
 
 const ROLE_LABELS: Record<Role, string> = {
-  [ROLES.STAFF]: "Staff",
-  [ROLES.ADMIN]: "Admin",
-  [ROLES.SUPER_ADMIN]: "Super Admin",
+  [ROLES.STAFF]:          "Staff",
+  [ROLES.ADMIN]:          "Admin",
+  [ROLES.SUPER_ADMIN]:    "Super Admin",
+  [ROLES.DISPATCH_STAFF]: "Dispatch Staff",
 };
 
 export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
@@ -189,7 +190,7 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
                 <FieldLabel htmlFor="role">Role</FieldLabel>
                 <Select
                   value={selectedRole}
-                  onValueChange={(val) => setValue("role", val as Role)}
+                  onValueChange={(val) => val && setValue("role", val as CreateUserFormValues["role"])}
                 >
                   <SelectTrigger id="role" className="w-full">
                     <SelectValue placeholder="Select a role" />
@@ -204,6 +205,17 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
                 </Select>
                 <FieldError errors={[errors.role]} />
               </Field>
+
+              {selectedRole === ROLES.STAFF && (
+                <Field>
+                  <FieldLabel htmlFor="territory">Territory</FieldLabel>
+                  <Input
+                    id="territory"
+                    placeholder="Saurashtra"
+                    {...register("territory")}
+                  />
+                </Field>
+              )}
 
               {serverError && (
                 <div

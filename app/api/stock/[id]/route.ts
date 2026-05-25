@@ -18,8 +18,10 @@ export const PATCH = withAuth(
       const row = await stockQueries.update(
         db, id,
         {
-          bag_stock:    body.bagStock    !== undefined ? Number(body.bagStock)    : undefined,
-          packet_stock: body.packetStock !== undefined ? Number(body.packetStock) : undefined,
+          bag_stock:     body.bagStock     !== undefined ? Number(body.bagStock)    : undefined,
+          packet_stock:  body.packetStock  !== undefined ? Number(body.packetStock) : undefined,
+          notes:         body.notes        ?? undefined,
+          movement_date: body.movementDate ?? undefined,
         },
         profile.id
       );

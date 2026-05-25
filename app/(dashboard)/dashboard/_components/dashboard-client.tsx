@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useDashboardStore } from "@/store/dashboard.store";
+import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import { StatsRow } from "./stats-row";
 import { PendingOrdersTable, type PendingOrder } from "./pending-orders-table";
 import { ActivityFeed, type ActivityItem } from "./activity-feed";
@@ -39,33 +41,29 @@ const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+const EMPTY_STATS: DashboardStats = {
+  totalOrders: 0, pendingApprovals: 0, totalDealers: 0,
+  totalStaff: 0, totalAdmins: 0, salesReturns: 0,
+};
+
 export function DashboardClient() {
   const setPendingOrdersCount = useDashboardStore((s) => s.setPendingOrdersCount);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
 
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: QUERY_KEYS.DASHBOARD_STATS,
+    queryFn: async () => {
+      const res  = await fetch("/api/dashboard/stats");
+      const json = await res.json();
+      return (json.data ?? EMPTY_STATS) as DashboardStats;
+    },
+  });
+
+  // Keep the Zustand store in sync so the nav badge stays accurate
   useEffect(() => {
-    fetch("/api/dashboard/stats")
-      .then((r) => r.json())
-      .then((json) => {
-        const data = json.data as DashboardStats;
-        setStats(data);
-        setPendingOrdersCount(data.pendingApprovals);
-      })
-      .catch(() => {
-        setStats({ totalOrders: 0, pendingApprovals: 0, totalDealers: 0, totalStaff: 0, totalAdmins: 0, salesReturns: 0 });
-      })
-      .finally(() => setStatsLoading(false));
-  }, [setPendingOrdersCount]);
+    if (stats) setPendingOrdersCount(stats.pendingApprovals);
+  }, [stats, setPendingOrdersCount]);
 
-  const displayStats = stats ?? {
-    totalOrders: 0,
-    pendingApprovals: 0,
-    totalDealers: 0,
-    totalStaff: 0,
-    totalAdmins: 0,
-    salesReturns: 0,
-  };
+  const displayStats = stats ?? EMPTY_STATS;
 
   return (
     <div className="flex flex-col gap-6">

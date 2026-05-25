@@ -5,7 +5,7 @@ import { UsersTable } from "./users-table";
 import { AddUserDialog } from "./add-user-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsersRealtime } from "@/hooks/use-users-realtime";
-import { ROLES } from "@/constants/roles.constants";
+import { ROLES, type Role } from "@/constants/roles.constants";
 
 export function UserTabs() {
   const { user } = useAuth();
@@ -36,11 +36,11 @@ export function UserTabs() {
         </TabsList>
 
         <TabsContent value="staff" className="mt-4">
-          <UsersTable roles={[ROLES.STAFF]} />
+          <UsersTable roles={[ROLES.STAFF, ROLES.DISPATCH_STAFF]} showTerritory currentUserRole={user?.role as Role} />
         </TabsContent>
 
         <TabsContent value="admins" className="mt-4">
-          <UsersTable roles={adminTabRoles} />
+          <UsersTable roles={adminTabRoles} currentUserRole={user?.role as Role} />
         </TabsContent>
       </Tabs>
     </div>

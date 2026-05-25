@@ -1,6 +1,8 @@
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PencilIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, Trash2Icon, HistoryIcon } from "lucide-react";
+import { ROUTES } from "@/constants/routes.constants";
 import type { SeedStockWithDetails } from "@/lib/database/stock.queries";
 
 interface StockTableProps {
@@ -12,6 +14,7 @@ interface StockTableProps {
 }
 
 export function StockTable({ rows, loading, canManage, onEdit, onDelete }: StockTableProps) {
+  const router = useRouter();
   const header = (
     <TableHeader className="sticky top-0 z-10 [&_th]:bg-card">
       <TableRow>
@@ -76,6 +79,13 @@ export function StockTable({ rows, loading, canManage, onEdit, onDelete }: Stock
                 {canManage && (
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">
+                      <button
+                        onClick={() => router.push(`${ROUTES.STOCK.LEDGER}?seedId=${r.seed_id}&batch=${r.batch_number}`)}
+                        title="View ledger"
+                        className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                      >
+                        <HistoryIcon className="size-3.5" />
+                      </button>
                       <button
                         onClick={() => onEdit(r)}
                         className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"

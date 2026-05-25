@@ -16,7 +16,7 @@ export const createDealerSchema = z.object({
 });
 
 export const updateDealerSchema = createDealerSchema.partial().extend({
-  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
+  status: z.enum(["ACTIVE", "SUSPENDED", "TERMINATED"]).optional(),
 });
 
 export type CreateDealerFormValues = z.infer<typeof createDealerSchema>;

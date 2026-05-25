@@ -44,7 +44,7 @@ export const POST = withAuth(
       );
     }
 
-    const { name, email, username, password, role } = parsed.data;
+    const { name, email, username, password, role, territory } = parsed.data;
 
     // Admins cannot create Super Admin users
     if (auth.profile.role === ROLES.ADMIN && role === ROLES.SUPER_ADMIN) {
@@ -92,6 +92,7 @@ export const POST = withAuth(
         name,
         username: username.toLowerCase(),
         role,
+        ...(territory ? { territory } : {}),
       })
       .select()
       .single();

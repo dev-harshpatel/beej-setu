@@ -60,8 +60,8 @@ export function DealersFilters({ searchInput, onSearchChange, filters, territori
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="INACTIVE">Inactive</SelectItem>
             <SelectItem value="SUSPENDED">Suspended</SelectItem>
+            <SelectItem value="TERMINATED">Terminated</SelectItem>
           </SelectContent>
         </Select>
       </div>

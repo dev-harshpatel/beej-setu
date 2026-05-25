@@ -7,6 +7,9 @@ import {
   BarChart2,
   Settings,
   Warehouse,
+  Building2,
+  Package,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { ROUTES } from "./routes.constants";
@@ -26,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Dashboard",
     href: ROUTES.DASHBOARD.ROOT,
     icon: LayoutDashboard,
+    permission: PERMISSIONS.DASHBOARD_VIEW,
   },
   {
     label: "Orders",
@@ -40,7 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.DEALERS_VIEW,
   },
   {
-    label: "Seeds",
+    label: "Product",
     href: ROUTES.SEEDS.ROOT,
     icon: Leaf,
     permission: PERMISSIONS.SEEDS_VIEW,
@@ -50,6 +54,10 @@ export const NAV_ITEMS: NavItem[] = [
     href: ROUTES.STOCK.ROOT,
     icon: Warehouse,
     permission: PERMISSIONS.STOCK_VIEW,
+    children: [
+      { label: "Inventory",    href: ROUTES.STOCK.ROOT,   icon: Warehouse },
+      { label: "Stock Ledger", href: ROUTES.STOCK.LEDGER, icon: History   },
+    ],
   },
   {
     label: "Users",
@@ -62,6 +70,11 @@ export const NAV_ITEMS: NavItem[] = [
     href: ROUTES.REPORTS.ROOT,
     icon: BarChart2,
     permission: PERMISSIONS.REPORTS_VIEW,
+    children: [
+      { label: "Overview", href: ROUTES.REPORTS.ROOT, icon: BarChart2 },
+      { label: "Dealer Report", href: ROUTES.REPORTS.DEALER, icon: Building2 },
+      { label: "Product Report", href: ROUTES.REPORTS.PRODUCT, icon: Package },
+    ],
   },
   {
     label: "Settings",

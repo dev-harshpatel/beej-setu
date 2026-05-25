@@ -2,14 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, SeedProductRow, CropRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
 
+export type SeedStockSummary = { bag_stock: number; packet_stock: number };
+
 export type SeedProductWithCropRow = SeedProductRow & {
   crop: Pick<CropRow, "id" | "name">;
+  stock: SeedStockSummary[];
 };
 
 export const seedsQueries = {
   async getAll(
     db: SupabaseClient<Database>,
-    params?: PaginationParams & { cropId?: string; variety?: string; status?: string }
+    params?: PaginationParams & { cropId?: string; variety?: string; status?: string; excludeZeroStock?: boolean }
   ) {
     const page = params?.page ?? 1;
     const pageSize = params?.pageSize ?? 50;
@@ -18,7 +21,7 @@ export const seedsQueries = {
 
     let query = db
       .from("seed_products")
-      .select("*, crop:crops(id, name)", { count: "exact" })
+      .select("*, crop:crops(id, name), stock:seed_stock(bag_stock, packet_stock)", { count: "exact" })
       .is("deleted_at", null);
 
     if (params?.search) {
@@ -34,6 +37,17 @@ export const seedsQueries = {
     }
     if (params?.status) {
       query = query.eq("status", params.status as SeedProductRow["status"]);
+    }
+
+    if (params?.excludeZeroStock) {
+      const { data: stockData } = await db
+        .from("seed_stock")
+        .select("seed_id")
+        .or("bag_stock.gt.0,packet_stock.gt.0");
+      const seedIdsWithStock = [...new Set((stockData ?? []).map((s) => s.seed_id))];
+      query = seedIdsWithStock.length > 0
+        ? query.in("id", seedIdsWithStock)
+        : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
     }
 
     const { data, error, count } = await query
@@ -57,7 +71,7 @@ export const seedsQueries = {
   ): Promise<SeedProductWithCropRow | null> {
     const { data, error } = await db
       .from("seed_products")
-      .select("*, crop:crops(id, name)")
+      .select("*, crop:crops(id, name), stock:seed_stock(bag_stock, packet_stock)")
       .eq("id", id)
       .is("deleted_at", null)
       .single();

@@ -9,6 +9,17 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+type ProfileRole = "SUPER_ADMIN" | "ADMIN" | "STAFF" | "DISPATCH_STAFF";
+type OrderStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "PARTIALLY_APPROVED"
+  | "HOLD"
+  | "CANCELLED"
+  | "GODOWN_DISPATCHED"
+  | "TRANSPORT_DISPATCHED"
+  | "SHIPPED";
+
 export interface Database {
   public: {
     Tables: {
@@ -18,9 +29,10 @@ export interface Database {
           name: string;
           username: string;
           phone: string | null;
-          role: "SUPER_ADMIN" | "ADMIN" | "STAFF";
+          role: ProfileRole;
           is_active: boolean;
           profile_image: string | null;
+          territory: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -29,9 +41,10 @@ export interface Database {
           name: string;
           username: string;
           phone?: string | null;
-          role?: "SUPER_ADMIN" | "ADMIN" | "STAFF";
+          role?: ProfileRole;
           is_active?: boolean;
           profile_image?: string | null;
+          territory?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -49,7 +62,7 @@ export interface Database {
           default_delivery_instruction: string | null;
           delivery_instruction: string | null;
           territory: string | null;
-          status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+          status: "ACTIVE" | "SUSPENDED" | "TERMINATED";
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -64,7 +77,7 @@ export interface Database {
           default_delivery_instruction?: string | null;
           delivery_instruction?: string | null;
           territory?: string | null;
-          status?: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+          status?: "ACTIVE" | "SUSPENDED" | "TERMINATED";
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -142,7 +155,7 @@ export interface Database {
           transport_name: string | null;
           delivery_center: string | null;
           delivery_date: string | null;
-          status: "DRAFT" | "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+          status: OrderStatus;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -156,13 +169,49 @@ export interface Database {
           transport_name?: string | null;
           delivery_center?: string | null;
           delivery_date?: string | null;
-          status?: "DRAFT" | "PENDING" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+          status?: OrderStatus;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
         Relationships: [];
+      };
+
+      challans: {
+        Row: {
+          id: string;
+          order_id: string;
+          challan_number: string;
+          transport_name: string | null;
+          lr_number: string | null;
+          godown_dispatch_date: string;
+          transport_dispatch_date: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          challan_number: string;
+          transport_name?: string | null;
+          lr_number?: string | null;
+          godown_dispatch_date?: string;
+          transport_dispatch_date?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["challans"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "challans_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
       };
 
       seed_stock: {
@@ -173,6 +222,8 @@ export interface Database {
           bag_stock: number;
           packet_stock: number;
           last_updated_by: string | null;
+          notes: string | null;
+          movement_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -183,6 +234,8 @@ export interface Database {
           bag_stock?: number;
           packet_stock?: number;
           last_updated_by?: string | null;
+          notes?: string | null;
+          movement_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -191,6 +244,41 @@ export interface Database {
           { foreignKeyName: "seed_stock_seed_id_fkey"; columns: ["seed_id"]; referencedRelation: "seed_products"; referencedColumns: ["id"] },
           { foreignKeyName: "seed_stock_last_updated_by_fkey"; columns: ["last_updated_by"]; referencedRelation: "profiles"; referencedColumns: ["id"] }
         ];
+      };
+
+      stock_movements: {
+        Row: {
+          id: string;
+          seed_id: string;
+          batch_number: string;
+          movement_type: 'ADD' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'DISPATCH';
+          quantity_packets: number;
+          quantity_bags: number;
+          quantity_pkt_rem: number;
+          movement_date: string;
+          movement_by: string | null;
+          approved_by: string | null;
+          order_id: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          seed_id: string;
+          batch_number: string;
+          movement_type: 'ADD' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'DISPATCH';
+          quantity_packets: number;
+          quantity_bags?: number;
+          quantity_pkt_rem?: number;
+          movement_date?: string;
+          movement_by?: string | null;
+          approved_by?: string | null;
+          order_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
       };
 
       order_items: {
@@ -225,10 +313,13 @@ export interface Database {
 }
 
 // Convenience row types
-export type ProfileRow      = Database["public"]["Tables"]["profiles"]["Row"];
-export type DealerRow       = Database["public"]["Tables"]["dealers"]["Row"];
-export type CropRow         = Database["public"]["Tables"]["crops"]["Row"];
-export type SeedProductRow  = Database["public"]["Tables"]["seed_products"]["Row"];
-export type OrderRow        = Database["public"]["Tables"]["orders"]["Row"];
-export type OrderItemRow    = Database["public"]["Tables"]["order_items"]["Row"];
-export type SeedStockRow    = Database["public"]["Tables"]["seed_stock"]["Row"];
+export type ProfileRow        = Database["public"]["Tables"]["profiles"]["Row"];
+export type DealerRow         = Database["public"]["Tables"]["dealers"]["Row"];
+export type CropRow           = Database["public"]["Tables"]["crops"]["Row"];
+export type SeedProductRow    = Database["public"]["Tables"]["seed_products"]["Row"];
+export type OrderRow          = Database["public"]["Tables"]["orders"]["Row"];
+export type OrderItemRow      = Database["public"]["Tables"]["order_items"]["Row"];
+export type SeedStockRow      = Database["public"]["Tables"]["seed_stock"]["Row"];
+export type ChallanRow        = Database["public"]["Tables"]["challans"]["Row"];
+export type StockMovementRow  = Database["public"]["Tables"]["stock_movements"]["Row"];
+export type StockMovementType = StockMovementRow["movement_type"];

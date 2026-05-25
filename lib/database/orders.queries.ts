@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, OrderRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
+import type { OrderStatusValue } from "@/constants/order-status.constants";
 
 const ORDER_SELECT = `
   *,
@@ -126,8 +127,20 @@ export const ordersQueries = {
     );
   },
 
+  // Legacy alias kept so any other callers don't break during migration.
   async confirmWithStockDeduction(db: SupabaseClient<Database>, id: string) {
-    const { error } = await db.rpc("confirm_order", { p_order_id: id });
+    return this.approveWithStockDeduction(db, id, "APPROVED");
+  },
+
+  async approveWithStockDeduction(
+    db: SupabaseClient<Database>,
+    id: string,
+    status: OrderStatusValue,
+  ) {
+    const { error } = await db.rpc("approve_order", {
+      p_order_id: id,
+      p_status: status,
+    });
     if (error) throw error;
     return this.getById(db, id);
   },
