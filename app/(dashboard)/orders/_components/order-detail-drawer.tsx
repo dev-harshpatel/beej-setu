@@ -355,7 +355,7 @@ export function OrderDetailDrawer({
             <h3 className="text-sm font-semibold">Change Status</h3>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select
-                value={pendingStatus || undefined}
+                value={pendingStatus}
                 onValueChange={(v) => setPendingStatus((v ?? "") as OrderStatus)}
               >
                 <SelectTrigger className="w-full sm:w-48">

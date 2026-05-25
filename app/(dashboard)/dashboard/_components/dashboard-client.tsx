@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useDashboardStore } from "@/store/dashboard.store";
 import { StatsRow } from "./stats-row";
-import { PendingOrdersTable, type PendingOrder } from "./pending-orders-table";
+import { PendingOrdersTable } from "./pending-orders-table";
 import { ActivityFeed, type ActivityItem } from "./activity-feed";
+import { OrderConfirmModal } from "@/app/(dashboard)/orders/_components/order-confirm-modal";
+import { OrderDetailDrawer } from "@/app/(dashboard)/orders/_components/order-detail-drawer";
+import type { OrderWithRelations } from "@/types/order.types";
+import type { OrderRow } from "@/types/database.types";
 
-// ── Stats shape returned by /api/dashboard/stats ─────────────────────────────
+type OrderStatus = OrderRow["status"];
+
 interface DashboardStats {
   totalOrders: number;
   pendingApprovals: number;
@@ -16,34 +21,29 @@ interface DashboardStats {
   salesReturns: number;
 }
 
-// ── Placeholder data — replace with real API calls when tables are ready ─────
-// TODO: orders table  → pending orders list
-// TODO: activity log  → real activity feed
-const PLACEHOLDER_ORDERS: PendingOrder[] = [
-  { id: "1", dealer: "Patel Seeds Co.", staff: "Ravi Kumar", date: "23 May 2026", items: 12 },
-  { id: "2", dealer: "Green Agro Hub", staff: "Meena Shah", date: "22 May 2026", items: 5 },
-  { id: "3", dealer: "Bharat Nursery", staff: "Amit Verma", date: "22 May 2026", items: 8 },
-  { id: "4", dealer: "Kisan Beej Bhandar", staff: "Priya Nair", date: "21 May 2026", items: 3 },
-  { id: "5", dealer: "Sardar Agri Store", staff: "Ravi Kumar", date: "20 May 2026", items: 15 },
-  { id: "6", dealer: "Krishi Sansar", staff: "Deepak Joshi", date: "19 May 2026", items: 7 },
-];
-
 const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
-  { id: "1", actor: "Meena Shah", action: "approved order for", target: "Green Agro Hub", time: "2 minutes ago", type: "approval" },
-  { id: "2", actor: "Ravi Kumar", action: "created order for", target: "Patel Seeds Co.", time: "18 minutes ago", type: "order" },
-  { id: "3", actor: "Admin", action: "added new dealer", target: "Sunrise Seeds Ltd.", time: "1 hour ago", type: "dealer" },
-  { id: "4", actor: "Priya Nair", action: "submitted return for", target: "Kisan Beej Bhandar", time: "2 hours ago", type: "return" },
-  { id: "5", actor: "Amit Verma", action: "created order for", target: "Bharat Nursery", time: "3 hours ago", type: "order" },
-  { id: "6", actor: "Admin", action: "added new staff", target: "Deepak Joshi", time: "Yesterday", type: "user" },
+  { id: "1", actor: "System", action: "dashboard loaded", target: "", time: "just now", type: "order" },
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardClient() {
   const setPendingOrdersCount = useDashboardStore((s) => s.setPendingOrdersCount);
+
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  const [pendingOrders, setPendingOrders] = useState<OrderWithRelations[]>([]);
+  const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
+  const [, startTransition] = useTransition();
+
+  // Confirm modal
+  const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Edit drawer
+  const [drawerOrder, setDrawerOrder] = useState<OrderWithRelations | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Fetch stats
   useEffect(() => {
     fetch("/api/dashboard/stats")
       .then((r) => r.json())
@@ -56,32 +56,89 @@ export function DashboardClient() {
         setStats({ totalOrders: 0, pendingApprovals: 0, totalDealers: 0, totalStaff: 0, totalAdmins: 0, salesReturns: 0 });
       })
       .finally(() => setStatsLoading(false));
-  }, [setPendingOrdersCount]);
+  }, [setPendingOrdersCount, ordersRefreshKey]);
+
+  // Fetch pending orders
+  const fetchPendingOrders = useCallback(() => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/orders?status=PENDING&pageSize=10&page=1");
+        const json = await res.json();
+        if (json.success) setPendingOrders(json.data?.data ?? []);
+      } catch { /* silent */ }
+    });
+  }, []);
+
+  useEffect(() => { fetchPendingOrders(); }, [fetchPendingOrders, ordersRefreshKey]);
+
+  function handleApprove(order: OrderWithRelations) {
+    setConfirmOrder(order);
+    setConfirmOpen(true);
+  }
+
+  function handleEdit(order: OrderWithRelations) {
+    setDrawerOrder(order);
+    setDrawerOpen(true);
+  }
+
+  function handleRowClick(order: OrderWithRelations) {
+    handleEdit(order);
+  }
+
+  function handleConfirmEdit(order: OrderWithRelations) {
+    setConfirmOpen(false);
+    setDrawerOrder(order);
+    setDrawerOpen(true);
+  }
+
+  async function handleStatusChange(id: string, status: OrderStatus) {
+    const res = await fetch(`/api/orders/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.message ?? "Status update failed");
+    setOrdersRefreshKey((k) => k + 1);
+  }
+
+  async function handleUpdate(
+    id: string,
+    fields: Record<string, string | undefined>,
+    itemEdits?: Record<string, { quantity: number; unit: string }>
+  ) {
+    const body: Record<string, unknown> = {};
+    if (fields.notes !== undefined) body.notes = fields.notes;
+    if (fields.delivery_date) body.deliveryDate = fields.delivery_date;
+    if (itemEdits && Object.keys(itemEdits).length > 0) {
+      body.items = Object.entries(itemEdits).map(([itemId, { quantity, unit }]) => ({
+        id: itemId, quantity, unit,
+      }));
+    }
+    const res = await fetch(`/api/orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.message ?? "Update failed");
+  }
 
   const displayStats = stats ?? {
-    totalOrders: 0,
-    pendingApprovals: 0,
-    totalDealers: 0,
-    totalStaff: 0,
-    totalAdmins: 0,
-    salesReturns: 0,
+    totalOrders: 0, pendingApprovals: 0, totalDealers: 0,
+    totalStaff: 0, totalAdmins: 0, salesReturns: 0,
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <StatsRow
-        stats={displayStats}
-        loading={statsLoading}
-      />
+      <StatsRow stats={displayStats} loading={statsLoading} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Pending Orders — 3/5 width on desktop */}
         <div className="lg:col-span-3 rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                Pending Orders
-              </h3>
+              <h3 className="text-sm font-semibold text-foreground">Pending Orders</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {displayStats.pendingApprovals} orders awaiting approval
               </p>
@@ -92,15 +149,18 @@ export function DashboardClient() {
               </span>
             )}
           </div>
-          <PendingOrdersTable orders={PLACEHOLDER_ORDERS} />
+          <PendingOrdersTable
+            orders={pendingOrders}
+            onApprove={handleApprove}
+            onEdit={handleEdit}
+            onRowClick={handleRowClick}
+          />
         </div>
 
         {/* Activity Feed — 2/5 width on desktop */}
         <div className="lg:col-span-2 rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3 sm:px-5">
-            <h3 className="text-sm font-semibold text-foreground">
-              Recent Activity
-            </h3>
+            <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Latest actions across the platform
             </p>
@@ -110,6 +170,30 @@ export function DashboardClient() {
           </div>
         </div>
       </div>
+
+      {/* Confirm modal */}
+      <OrderConfirmModal
+        order={confirmOrder}
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onEdit={handleConfirmEdit}
+        onConfirmed={() => {
+          setConfirmOpen(false);
+          setOrdersRefreshKey((k) => k + 1);
+        }}
+      />
+
+      {/* Edit drawer */}
+      <OrderDetailDrawer
+        order={drawerOrder}
+        open={drawerOpen}
+        initialMode="edit"
+        onClose={() => setDrawerOpen(false)}
+        onStatusChange={handleStatusChange}
+        onUpdate={handleUpdate}
+        onCreateChallan={() => {}}
+        onRefresh={() => setOrdersRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 }

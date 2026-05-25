@@ -120,22 +120,22 @@ export function OrdersFilters({
       </Select>
 
       {/* Date range */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 w-full sm:w-auto">
         <DatePicker
           value={dateFrom}
           onChange={onDateFromChange}
           placeholder="From date"
           size="sm"
-          className="w-full sm:w-36"
+          className="flex-1 sm:flex-none sm:w-36"
         />
-        <span className="text-xs text-muted-foreground">–</span>
+        <span className="text-xs text-muted-foreground shrink-0">–</span>
         <DatePicker
           value={dateTo}
           onChange={onDateToChange}
           placeholder="To date"
           size="sm"
           minDate={dateFrom || undefined}
-          className="w-full sm:w-36"
+          className="flex-1 sm:flex-none sm:w-36"
         />
       </div>
 

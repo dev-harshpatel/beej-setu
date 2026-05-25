@@ -126,7 +126,7 @@ export function DealersPage() {
   const hasFilters = !!(filters.search || filters.status || filters.territory);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 pb-4">
       <DealersHeader total={total} canCreate={canCreate} onAdd={openAdd} />
       <DealersFilters
         searchInput={searchInput}
@@ -136,25 +136,23 @@ export function DealersPage() {
         onChange={handleFiltersChange}
       />
 
-      <div className="flex-1 min-h-0">
-        {!loading && dealers.length === 0 ? (
-          <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} />
-        ) : (
-          <DealersTable
-            dealers={dealers}
-            loading={loading}
-            isStaff={isStaff}
-            canEdit={canEdit}
-            canDelete={canDelete}
-            onEdit={openEdit}
-            onDelete={openDelete}
-          />
-        )}
-      </div>
+      {!loading && dealers.length === 0 ? (
+        <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} />
+      ) : (
+        <DealersTable
+          dealers={dealers}
+          loading={loading}
+          isStaff={isStaff}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onEdit={openEdit}
+          onDelete={openDelete}
+        />
+      )}
 
-      <div className="sticky bottom-0 bg-background border-t py-2.5">
+      {totalPages > 1 && (
         <DealersPagination page={page} totalPages={totalPages} onPageChange={setPage} />
-      </div>
+      )}
 
       <DealerFormDialog
         open={formOpen}

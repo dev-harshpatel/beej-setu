@@ -18,7 +18,7 @@ export default function DashboardPage() {
         />
         <h1 className="text-sm font-medium">Dashboard</h1>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 sm:pt-4">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 sm:pt-4 pb-8">
         <DashboardRouter />
       </div>
     </>

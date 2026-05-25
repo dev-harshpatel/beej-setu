@@ -5,34 +5,26 @@ import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 export const GET = withAuth(async () => {
   const db = getSupabaseAdminClient();
 
-  // ── Real queries (tables exist) ──────────────────────────────────────────
-
-  const { count: totalStaff } = await db
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", ROLES.STAFF)
-    .eq("is_active", true);
-
-  const { count: totalAdmins } = await db
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN])
-    .eq("is_active", true);
-
-  // ── Placeholder queries (replace when tables are ready) ──────────────────
-  // TODO: replace with real queries once orders, dealers, returns tables exist
-
-  const totalOrders = 0;       // orders table
-  const pendingApprovals = 0;  // orders where status = 'PENDING'
-  const totalDealers = 0;      // dealers table
-  const salesReturns = 0;      // returns table (this month)
+  const [
+    { count: totalStaff },
+    { count: totalAdmins },
+    { count: totalOrders },
+    { count: pendingApprovals },
+    { count: totalDealers },
+  ] = await Promise.all([
+    db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true),
+    db.from("profiles").select("*", { count: "exact", head: true }).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true),
+    db.from("orders").select("*", { count: "exact", head: true }).neq("status", "DRAFT"),
+    db.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
+    db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE").is("deleted_at", null),
+  ]);
 
   return apiSuccess({
-    totalOrders,
-    pendingApprovals,
-    totalDealers,
-    totalStaff: totalStaff ?? 0,
-    totalAdmins: totalAdmins ?? 0,
-    salesReturns,
+    totalOrders:      totalOrders      ?? 0,
+    pendingApprovals: pendingApprovals ?? 0,
+    totalDealers:     totalDealers     ?? 0,
+    totalStaff:       totalStaff       ?? 0,
+    totalAdmins:      totalAdmins      ?? 0,
+    salesReturns:     0,
   });
 }, PERMISSIONS.ORDERS_VIEW);

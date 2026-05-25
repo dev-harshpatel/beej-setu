@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { OrdersFilters } from "./orders-filters";
 import { OrdersTable } from "./orders-table";
 import { OrderDetailDrawer } from "./order-detail-drawer";
+import { OrderConfirmModal } from "./order-confirm-modal";
 import { CreateChallanDialog } from "./create-challan-dialog";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderRow } from "@/types/database.types";
@@ -45,6 +46,9 @@ export function OrdersTabs() {
 
   const [challanOrder, setChallanOrder] = useState<OrderWithRelations | null>(null);
   const [challanOpen, setChallanOpen] = useState(false);
+
+  const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Debounce search
   useEffect(() => {
@@ -110,17 +114,16 @@ export function OrdersTabs() {
     setDrawerOpen(true);
   }
 
-  async function handleConfirm(order: OrderWithRelations) {
-    try {
-      await fetch(`/api/orders/${order.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "CONFIRMED" }),
-      });
-      setRefreshKey((k) => k + 1);
-    } catch {
-      // silently fail — drawer will show error if opened
-    }
+  function handleConfirm(order: OrderWithRelations) {
+    setConfirmOrder(order);
+    setConfirmOpen(true);
+  }
+
+  function handleConfirmEdit(order: OrderWithRelations) {
+    setConfirmOpen(false);
+    setSelectedOrder(order);
+    setDrawerMode("edit");
+    setDrawerOpen(true);
   }
 
   function handleCreateChallan(order: OrderWithRelations) {
@@ -256,6 +259,18 @@ export function OrdersTabs() {
           handleCreateChallan(order);
         }}
         onRefresh={() => setRefreshKey((k) => k + 1)}
+      />
+
+      {/* Confirm modal */}
+      <OrderConfirmModal
+        order={confirmOrder}
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onEdit={handleConfirmEdit}
+        onConfirmed={() => {
+          setConfirmOpen(false);
+          setRefreshKey((k) => k + 1);
+        }}
       />
 
       {/* Challan dialog */}
