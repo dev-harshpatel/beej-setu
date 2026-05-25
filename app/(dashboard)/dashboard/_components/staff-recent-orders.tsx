@@ -1,32 +1,19 @@
 import { ShoppingCartIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-import type { OrderStatus } from "@/types/order.types";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_BADGE_CLASSES, type OrderStatusValue } from "@/constants/order-status.constants";
 
 export interface RecentOrderItem {
   id: string;
   dealer: string;
   date: string;
   amount: number;
-  status: OrderStatus;
+  status: OrderStatusValue;
 }
 
 interface StaffRecentOrdersProps {
   orders: RecentOrderItem[];
 }
-
-const STATUS_BADGE: Record<
-  OrderStatus,
-  { label: string; className: string }
-> = {
-  DRAFT:      { label: "Draft",      className: "bg-muted text-muted-foreground border-0" },
-  PENDING:    { label: "Pending",    className: "bg-warning/15 text-warning border-0" },
-  CONFIRMED:  { label: "Confirmed",  className: "bg-accent text-accent-foreground border-0" },
-  PROCESSING: { label: "Processing", className: "bg-info/15 text-info border-0" },
-  SHIPPED:    { label: "Dispatched", className: "bg-info/15 text-info border-0" },
-  DELIVERED:  { label: "Delivered",  className: "bg-accent text-accent-foreground border-0" },
-  CANCELLED:  { label: "Cancelled",  className: "bg-destructive/10 text-destructive border-0" },
-};
 
 export function StaffRecentOrders({ orders }: StaffRecentOrdersProps) {
   if (orders.length === 0) {
@@ -40,9 +27,7 @@ export function StaffRecentOrders({ orders }: StaffRecentOrdersProps) {
 
   return (
     <div className="flex flex-col divide-y divide-border">
-      {orders.map((order) => {
-        const badge = STATUS_BADGE[order.status];
-        return (
+      {orders.map((order) => (
           <div
             key={order.id}
             className="flex items-center justify-between gap-3 py-3 px-1"
@@ -57,11 +42,12 @@ export function StaffRecentOrders({ orders }: StaffRecentOrdersProps) {
               <span className="text-sm font-semibold text-foreground tabular-nums">
                 {formatCurrency(order.amount)}
               </span>
-              <Badge className={badge.className}>{badge.label}</Badge>
+              <Badge className={ORDER_STATUS_BADGE_CLASSES[order.status]}>
+                {ORDER_STATUS_LABELS[order.status]}
+              </Badge>
             </div>
           </div>
-        );
-      })}
+      ))}
     </div>
   );
 }

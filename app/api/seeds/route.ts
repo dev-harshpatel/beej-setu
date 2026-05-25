@@ -11,12 +11,13 @@ export const GET = withAuth(
     const db = getSupabaseAdminClient();
 
     const result = await seedsQueries.getAll(db, {
-      page:     Number(searchParams.get("page")     ?? 1),
-      pageSize: Number(searchParams.get("pageSize") ?? 50),
-      search:   searchParams.get("search")   ?? undefined,
-      cropId:   searchParams.get("cropId")   ?? undefined,
-      variety:  searchParams.get("variety")  ?? undefined,
-      status:   searchParams.get("status")   ?? undefined,
+      page:             Number(searchParams.get("page")     ?? 1),
+      pageSize:         Number(searchParams.get("pageSize") ?? 50),
+      search:           searchParams.get("search")          ?? undefined,
+      cropId:           searchParams.get("cropId")          ?? undefined,
+      variety:          searchParams.get("variety")         ?? undefined,
+      status:           searchParams.get("status")          ?? undefined,
+      excludeZeroStock: searchParams.get("excludeZeroStock") === "true",
     });
 
     return apiSuccess(result);

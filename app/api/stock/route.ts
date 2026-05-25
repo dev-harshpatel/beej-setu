@@ -39,6 +39,8 @@ export const POST = withAuth(
       bag_stock:       Number(body.bagStock)    || 0,
       packet_stock:    Number(body.packetStock) || 0,
       last_updated_by: profile.id,
+      notes:           body.notes        ?? null,
+      movement_date:   body.movementDate ?? null,
     });
     return apiSuccess(row, "Stock batch created", 201);
   },

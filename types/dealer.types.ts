@@ -1,6 +1,6 @@
 import type { ID, Timestamps, SoftDelete } from "./common.types";
 
-export type DealerStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+export type DealerStatus = "ACTIVE" | "SUSPENDED" | "TERMINATED";
 
 export interface DealerStaff {
   id: ID;

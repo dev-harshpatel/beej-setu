@@ -3,12 +3,13 @@
 import {
   CheckCircleIcon,
   ClipboardListIcon,
-  MoreHorizontalIcon,
+  PauseCircleIcon,
   PencilIcon,
+  SendIcon,
   ShoppingBagIcon,
+  XCircleIcon,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -17,22 +18,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderStatusBadge } from "./order-status-badge";
+import {
+  ORDER_STATUSES,
+  CHALLAN_ELIGIBLE_STATUSES,
+  TRANSPORT_UPDATE_ELIGIBLE_STATUSES,
+  type OrderStatusValue,
+} from "@/constants/order-status.constants";
 import type { OrderWithRelations } from "@/types/order.types";
-
 
 interface OrdersTableProps {
   orders: OrderWithRelations[];
   loading: boolean;
   onEdit: (order: OrderWithRelations) => void;
-  onConfirm: (order: OrderWithRelations) => void;
+  onApprove: (order: OrderWithRelations) => void;
+  onHold: (order: OrderWithRelations) => void;
+  onCancel: (order: OrderWithRelations) => void;
   onCreateChallan: (order: OrderWithRelations) => void;
 }
 
@@ -40,7 +42,9 @@ export function OrdersTable({
   orders,
   loading,
   onEdit,
-  onConfirm,
+  onApprove,
+  onHold,
+  onCancel,
   onCreateChallan,
 }: OrdersTableProps) {
   if (loading) {
@@ -69,7 +73,12 @@ export function OrdersTable({
                 <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                 <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-8" /></TableCell>
                 <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-7 w-20 ml-auto" /></TableCell>
+                <TableCell>
+                  <div className="flex justify-end gap-1.5">
+                    <Skeleton className="h-7 w-16" />
+                    <Skeleton className="h-7 w-14" />
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -103,92 +112,112 @@ export function OrdersTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-mono text-xs font-medium">
-                {order.order_number}
-              </TableCell>
-              <TableCell className="font-medium">
-                {order.dealer?.name ?? "—"}
-              </TableCell>
-              <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                {order.staff?.name ?? "—"}
-              </TableCell>
-              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                {order.dealer?.territory ?? "—"}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
-                {new Date(order.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                {order.items?.length ?? 0}
-              </TableCell>
-              <TableCell>
-                <OrderStatusBadge status={order.status} />
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-1.5">
-                  {order.status === "PENDING" && (
+          {orders.map((order) => {
+            const status = order.status as OrderStatusValue;
+            const isPending = status === ORDER_STATUSES.PENDING;
+            const challanEligible = CHALLAN_ELIGIBLE_STATUSES.includes(status);
+            const transportUpdateEligible = TRANSPORT_UPDATE_ELIGIBLE_STATUSES.includes(status);
+
+            return (
+              <TableRow key={order.id}>
+                <TableCell className="font-mono text-xs font-medium">
+                  {order.order_number}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {order.dealer?.name ?? "—"}
+                </TableCell>
+                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                  {order.staff?.name ?? "—"}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                  {order.dealer?.territory ?? "—"}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
+                  {new Date(order.created_at).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                  {order.items?.length ?? 0}
+                </TableCell>
+                <TableCell>
+                  <OrderStatusBadge status={status} />
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {/* Pending orders: 3 action buttons */}
+                    {isPending && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-success text-success-foreground hover:bg-success/90 border-0"
+                          onClick={() => onApprove(order)}
+                        >
+                          <CheckCircleIcon className="size-3.5" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => onHold(order)}
+                        >
+                          <PauseCircleIcon className="size-3.5" />
+                          Hold
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-destructive hover:text-destructive"
+                          onClick={() => onCancel(order)}
+                        >
+                          <XCircleIcon className="size-3.5" />
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+
+                    {/* Approved / Partially Approved: Challan button */}
+                    {challanEligible && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
+                        onClick={() => onCreateChallan(order)}
+                      >
+                        <ClipboardListIcon className="size-3.5" />
+                        Challan
+                      </Button>
+                    )}
+
+                    {/* Godown dispatched: Transport Dispatch button */}
+                    {transportUpdateEligible && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-purple-600 text-white hover:bg-purple-700 border-0"
+                        onClick={() => onCreateChallan(order)}
+                      >
+                        <SendIcon className="size-3.5" />
+                        Transport Dispatch
+                      </Button>
+                    )}
+
+                    {/* Edit always visible */}
                     <Button
                       size="sm"
                       variant="outline"
-                      className="hidden sm:flex h-7 text-xs"
-                      onClick={() => onConfirm(order)}
+                      className="h-7 text-xs"
+                      onClick={() => onEdit(order)}
                     >
-                      <CheckCircleIcon className="size-3.5" />
-                      Confirm
+                      <PencilIcon className="size-3.5" />
+                      Edit
                     </Button>
-                  )}
-                  {order.status === "CONFIRMED" && (
-                    <Button
-                      size="sm"
-                      className="hidden sm:flex h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
-                      onClick={() => onCreateChallan(order)}
-                    >
-                      <ClipboardListIcon className="size-3.5" />
-                      Challan
-                    </Button>
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
-                      aria-label="More actions"
-                    >
-                      <MoreHorizontalIcon className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(order)}>
-                        <PencilIcon className="size-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      {order.status === "PENDING" && (
-                        <DropdownMenuItem
-                          className="sm:hidden"
-                          onClick={() => onConfirm(order)}
-                        >
-                          <CheckCircleIcon className="size-4" />
-                          Confirm order
-                        </DropdownMenuItem>
-                      )}
-                      {order.status === "CONFIRMED" && (
-                        <DropdownMenuItem
-                          className="sm:hidden"
-                          onClick={() => onCreateChallan(order)}
-                        >
-                          <ClipboardListIcon className="size-4" />
-                          Create challan
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

@@ -1,88 +1,65 @@
-import { ArchiveIcon, CheckCircleIcon, PackageIcon, UsersIcon } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+"use client";
 
-interface SummaryCardsProps {
-  totalOrders: number;
-  confirmedOrders: number;
-  totalInventoryPackets: number;
-  lowStockCount: number;
-  criticalStockCount: number;
-  activeDealers: number;
+import {
+  ShoppingCartIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  TruckIcon,
+  PackageCheckIcon,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ReportSummary } from "@/lib/database/reports.queries";
+
+interface CardDef {
+  title: string;
+  key: keyof ReportSummary;
+  icon: React.ElementType;
+  colorClass: string;
+}
+
+const CARDS: CardDef[] = [
+  { title: "Total Orders",       key: "totalOrders",        icon: ShoppingCartIcon,  colorClass: "bg-accent text-accent-foreground" },
+  { title: "Pending",            key: "pending",            icon: ClockIcon,         colorClass: "bg-warning/10 text-warning" },
+  { title: "Approved",           key: "approved",           icon: CheckCircleIcon,   colorClass: "bg-success/10 text-success" },
+  { title: "Partially Approved", key: "partiallyApproved",  icon: CheckCircleIcon,   colorClass: "bg-orange-100 text-orange-600" },
+  { title: "Cancelled",          key: "cancelled",          icon: XCircleIcon,       colorClass: "bg-destructive/15 text-destructive" },
+  { title: "Dispatched",         key: "godownDispatched",   icon: TruckIcon,         colorClass: "bg-blue-100 text-blue-700" },
+  { title: "In Transit",         key: "transportDispatched",icon: TruckIcon,         colorClass: "bg-purple-100 text-purple-700" },
+  { title: "Delivered",          key: "shipped",            icon: PackageCheckIcon,  colorClass: "bg-accent text-accent-foreground" },
+];
+
+interface ReportsSummaryCardsProps {
+  summary: ReportSummary;
   loading: boolean;
 }
 
-interface CardProps {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ReactNode;
-  accent?: "default" | "warning" | "danger";
-}
-
-function Card({ label, value, sub, icon, accent = "default" }: CardProps) {
-  const accentClass =
-    accent === "danger"  ? "text-destructive" :
-    accent === "warning" ? "text-warning" :
-    "text-accent-foreground";
-
+export function ReportsSummaryCards({ summary, loading }: ReportsSummaryCardsProps) {
   return (
-    <div className="rounded-xl border border-border bg-card px-5 py-4 flex items-start gap-4">
-      <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 ${accentClass}`}>
-        {icon}
-      </div>
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className={`text-2xl font-bold tabular-nums ${accentClass}`}>{value}</span>
-        {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
-      </div>
-    </div>
-  );
-}
-
-export function ReportsSummaryCards({
-  totalOrders, confirmedOrders, totalInventoryPackets,
-  lowStockCount, criticalStockCount, activeDealers, loading,
-}: SummaryCardsProps) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card px-5 py-4">
-            <Skeleton className="h-4 w-24 mb-3" />
-            <Skeleton className="h-8 w-16" />
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      {CARDS.map(({ title, key, icon: Icon, colorClass }) => (
+        <div
+          key={key}
+          className="rounded-xl border border-border bg-card p-3.5 flex flex-col gap-2.5"
+        >
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-xs font-medium text-muted-foreground leading-tight">{title}</p>
+            <div className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${colorClass}`}>
+              <Icon className="size-3.5" />
+            </div>
           </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <Card
-        label="Total Orders"
-        value={totalOrders}
-        sub="all active orders"
-        icon={<PackageIcon className="size-4" />}
-      />
-      <Card
-        label="Confirmed Orders"
-        value={confirmedOrders}
-        sub="awaiting dispatch"
-        icon={<CheckCircleIcon className="size-4" />}
-      />
-      <Card
-        label="Total Inventory"
-        value={totalInventoryPackets.toLocaleString("en-IN")}
-        sub="packet equivalents"
-        icon={<ArchiveIcon className="size-4" />}
-      />
-      <Card
-        label="Low Stock Items"
-        value={lowStockCount}
-        sub={criticalStockCount > 0 ? `${criticalStockCount} critical` : "all seeds healthy"}
-        icon={<ArchiveIcon className="size-4" />}
-        accent={criticalStockCount > 0 ? "danger" : lowStockCount > 0 ? "warning" : "default"}
-      />
+          {loading ? (
+            <>
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-2.5 w-16" />
+            </>
+          ) : (
+            <p className="text-2xl font-bold text-foreground tabular-nums leading-none">
+              {summary[key]}
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

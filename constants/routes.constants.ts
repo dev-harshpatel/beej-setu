@@ -41,11 +41,14 @@ export const ROUTES = {
   },
 
   STOCK: {
-    ROOT: "/stock",
+    ROOT:   "/stock",
+    LEDGER: "/stock/ledger",
   },
 
   REPORTS: {
     ROOT: "/reports",
+    DEALER: "/reports/dealer",
+    PRODUCT: "/reports/product",
   },
 
   SETTINGS: {

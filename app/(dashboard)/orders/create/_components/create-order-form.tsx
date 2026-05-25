@@ -86,12 +86,12 @@ export function CreateOrderForm() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/dealers?pageSize=500")
+    fetch("/api/dealers?pageSize=500&status=ACTIVE")
       .then((r) => r.json())
       .then((json) => setDealers(json.data?.data ?? []))
       .catch(() => setDealers([]));
 
-    fetch("/api/seeds?pageSize=500")
+    fetch("/api/seeds?pageSize=500&excludeZeroStock=true")
       .then((r) => r.json())
       .then((json) => setSeeds(json.data?.data ?? []))
       .catch(() => setSeeds([]));

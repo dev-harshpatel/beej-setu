@@ -6,8 +6,10 @@ import {
   CheckCircleIcon,
   ClipboardListIcon,
   ClockIcon,
+  PauseCircleIcon,
   PencilIcon,
   UserIcon,
+  XCircleIcon,
   XIcon,
 } from "lucide-react";
 import {
@@ -31,24 +33,23 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { OrderStatusBadge } from "./order-status-badge";
+import {
+  ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
+  ADMIN_SETTABLE_STATUSES,
+  CHALLAN_ELIGIBLE_STATUSES,
+  type OrderStatusValue,
+} from "@/constants/order-status.constants";
+import { ROUTES } from "@/constants/routes.constants";
 import type { OrderWithRelations } from "@/types/order.types";
-import type { OrderRow } from "@/types/database.types";
 
-type OrderStatus = OrderRow["status"];
-
-const ALL_STATUSES: OrderStatus[] = [
-  "DRAFT", "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED",
+const STOCK_IMPACT_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUSES.APPROVED,
+  ORDER_STATUSES.PARTIALLY_APPROVED,
+  ORDER_STATUSES.GODOWN_DISPATCHED,
+  ORDER_STATUSES.TRANSPORT_DISPATCHED,
+  ORDER_STATUSES.SHIPPED,
 ];
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  DRAFT: "Draft",
-  PENDING: "Pending",
-  CONFIRMED: "Confirmed",
-  PROCESSING: "Processing",
-  SHIPPED: "Dispatched",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
 
 interface EditFields {
   notes: string;
@@ -63,7 +64,7 @@ interface OrderDetailDrawerProps {
   open: boolean;
   initialMode?: "view" | "edit";
   onClose: () => void;
-  onStatusChange: (id: string, status: OrderStatus) => Promise<void>;
+  onStatusChange: (id: string, status: OrderStatusValue) => Promise<void>;
   onUpdate: (id: string, fields: Partial<EditFields>, itemEdits?: Record<string, ItemEdit>) => Promise<void>;
   onCreateChallan: (order: OrderWithRelations) => void;
   onRefresh: () => void;
@@ -80,12 +81,9 @@ export function OrderDetailDrawer({
   onRefresh,
 }: OrderDetailDrawerProps) {
   const [mode, setMode] = useState<"view" | "edit">(initialMode);
-  const [editFields, setEditFields] = useState<EditFields>({
-    notes: "",
-    delivery_date: "",
-  });
+  const [editFields, setEditFields] = useState<EditFields>({ notes: "", delivery_date: "" });
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
-  const [pendingStatus, setPendingStatus] = useState<OrderStatus | "">("");
+  const [pendingStatus, setPendingStatus] = useState<OrderStatusValue | "">("");
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -94,9 +92,7 @@ export function OrderDetailDrawer({
     if (!order) return;
     setEditFields({
       notes: order.notes ?? "",
-      delivery_date: order.delivery_date
-        ? order.delivery_date.split("T")[0]
-        : "",
+      delivery_date: order.delivery_date ? order.delivery_date.split("T")[0] : "",
     });
     const edits: Record<string, ItemEdit> = {};
     (order.items ?? []).forEach((item) => {
@@ -111,6 +107,15 @@ export function OrderDetailDrawer({
     setSaveError(null);
   }
 
+  // Returns true if any item quantity was reduced from the original
+  function hasReducedQuantities(): boolean {
+    if (!order) return false;
+    return (order.items ?? []).some((item) => {
+      const edited = itemEdits[item.id];
+      return edited !== undefined && edited.quantity < item.quantity;
+    });
+  }
+
   async function handleSave() {
     if (!order) return;
     setSaving(true);
@@ -118,11 +123,8 @@ export function OrderDetailDrawer({
     try {
       await onUpdate(
         order.id,
-        {
-          notes: editFields.notes || undefined,
-          delivery_date: editFields.delivery_date || undefined,
-        },
-        itemEdits
+        { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
+        itemEdits,
       );
       setMode("view");
       onRefresh();
@@ -133,12 +135,36 @@ export function OrderDetailDrawer({
     }
   }
 
+  // Saves edits then transitions to APPROVED or PARTIALLY_APPROVED based on quantity changes
+  async function handleSaveAndApprove() {
+    if (!order) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onUpdate(
+        order.id,
+        { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
+        itemEdits,
+      );
+      const newStatus = hasReducedQuantities()
+        ? ORDER_STATUSES.PARTIALLY_APPROVED
+        : ORDER_STATUSES.APPROVED;
+      await onStatusChange(order.id, newStatus);
+      setMode("view");
+      onRefresh();
+    } catch {
+      setSaveError("Failed to approve order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleStatusSave() {
     if (!order || !pendingStatus) return;
     setStatusSaving(true);
     setSaveError(null);
     try {
-      await onStatusChange(order.id, pendingStatus);
+      await onStatusChange(order.id, pendingStatus as OrderStatusValue);
       setPendingStatus("");
       onRefresh();
     } catch {
@@ -158,6 +184,7 @@ export function OrderDetailDrawer({
   if (!order) return null;
 
   const totalItems = order.items?.length ?? 0;
+  const canCreateChallan = CHALLAN_ELIGIBLE_STATUSES.includes(order.status as OrderStatusValue);
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -172,7 +199,7 @@ export function OrderDetailDrawer({
             <SheetTitle className="font-mono text-sm font-semibold truncate">
               {order.order_number}
             </SheetTitle>
-            <OrderStatusBadge status={order.status} />
+            <OrderStatusBadge status={order.status as OrderStatusValue} />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {mode === "view" && (
@@ -181,7 +208,7 @@ export function OrderDetailDrawer({
                 Edit
               </Button>
             )}
-            {order.status === "CONFIRMED" && mode === "view" && (
+            {canCreateChallan && mode === "view" && (
               <Button
                 size="sm"
                 className="bg-accent text-accent-foreground hover:bg-accent/80 border-0"
@@ -225,9 +252,7 @@ export function OrderDetailDrawer({
 
           {/* Items */}
           <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold">
-              Order Items ({totalItems})
-            </h3>
+            <h3 className="text-sm font-semibold">Order Items ({totalItems})</h3>
             <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full text-sm">
                 <thead>
@@ -244,6 +269,14 @@ export function OrderDetailDrawer({
                         <div>{item.seed?.crops?.name ?? "—"}</div>
                         {item.seed?.variety && (
                           <div className="text-xs text-muted-foreground">{item.seed.variety}</div>
+                        )}
+                        {STOCK_IMPACT_STATUSES.includes(order.status as OrderStatusValue) && item.seed_id && (
+                          <a
+                            href={`${ROUTES.STOCK.LEDGER}?seedId=${item.seed_id}`}
+                            className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+                          >
+                            View batch movement →
+                          </a>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right text-muted-foreground">
@@ -275,7 +308,10 @@ export function OrderDetailDrawer({
                             onChange={(e) =>
                               setItemEdits((prev) => ({
                                 ...prev,
-                                [item.id]: { ...prev[item.id], quantity: Math.max(1, Number(e.target.value)) },
+                                [item.id]: {
+                                  ...prev[item.id],
+                                  quantity: Math.max(1, Number(e.target.value)),
+                                },
                               }))
                             }
                             className="w-16 rounded border border-input bg-transparent px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
@@ -291,7 +327,7 @@ export function OrderDetailDrawer({
             </div>
           </div>
 
-{/* Editable fields */}
+          {/* Editable fields */}
           {mode === "edit" ? (
             <div className="flex flex-col gap-3 rounded-md border border-border p-3">
               <h3 className="text-sm font-semibold">Edit Order</h3>
@@ -318,17 +354,26 @@ export function OrderDetailDrawer({
                 />
               </Field>
 
-              {saveError && (
-                <p className="text-sm text-destructive">{saveError}</p>
-              )}
+              {saveError && <p className="text-sm text-destructive">{saveError}</p>}
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex flex-wrap gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={saving}>
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving…" : "Save Changes"}
+                <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving…" : "Save Only"}
                 </Button>
+                {order.status === ORDER_STATUSES.PENDING && (
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAndApprove}
+                    disabled={saving}
+                    className="bg-success text-success-foreground hover:bg-success/90"
+                  >
+                    <CheckCircleIcon className="size-3.5" />
+                    {saving ? "Approving…" : "Save & Approve"}
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -342,7 +387,14 @@ export function OrderDetailDrawer({
               {order.delivery_date && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CalendarIcon className="size-3.5 shrink-0" />
-                  <span>Delivery: {new Date(order.delivery_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                  <span>
+                    Delivery:{" "}
+                    {new Date(order.delivery_date).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </div>
               )}
             </div>
@@ -350,21 +402,60 @@ export function OrderDetailDrawer({
 
           <Separator />
 
+          {/* Quick actions */}
+          {order.status === ORDER_STATUSES.PENDING && mode === "view" && (
+            <>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">Actions</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-success text-success-foreground hover:bg-success/90"
+                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.APPROVED).then(onRefresh)}
+                  >
+                    <CheckCircleIcon className="size-3.5" />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.HOLD).then(onRefresh)}
+                  >
+                    <PauseCircleIcon className="size-3.5" />
+                    Hold
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.CANCELLED).then(onRefresh)}
+                  >
+                    <XCircleIcon className="size-3.5" />
+                    Cancel Order
+                  </Button>
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
+
           {/* Change status */}
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold">Change Status</h3>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select
                 value={pendingStatus}
-                onValueChange={(v) => setPendingStatus((v ?? "") as OrderStatus)}
+                onValueChange={(v) => setPendingStatus(v as OrderStatusValue)}
               >
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder={`Current: ${STATUS_LABELS[order.status]}`} />
+                <SelectTrigger className="w-full sm:w-56">
+                  <SelectValue
+                    placeholder={`Current: ${ORDER_STATUS_LABELS[order.status as OrderStatusValue] ?? order.status}`}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_STATUSES.filter((s) => s !== order.status).map((s) => (
+                  {ADMIN_SETTABLE_STATUSES.filter((s) => s !== order.status).map((s) => (
                     <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
+                      {ORDER_STATUS_LABELS[s]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -385,7 +476,7 @@ export function OrderDetailDrawer({
 
           <Separator />
 
-          {/* Change history (timeline) */}
+          {/* History */}
           <div className="flex flex-col gap-3">
             <h3 className="text-sm font-semibold">History</h3>
             <div className="flex flex-col gap-3">

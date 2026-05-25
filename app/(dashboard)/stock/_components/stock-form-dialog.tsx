@@ -23,6 +23,8 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
   const [batchNumber, setBatchNumber] = useState("");
   const [bagStock, setBagStock]       = useState("0");
   const [packetStock, setPacketStock] = useState("0");
+  const [notes, setNotes]             = useState("");
+  const [movementDate, setMovementDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
@@ -32,6 +34,8 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
       setBatchNumber(stock?.batch_number ?? "");
       setBagStock(String(stock?.bag_stock ?? 0));
       setPacketStock(String(stock?.packet_stock ?? 0));
+      setNotes(stock?.notes ?? "");
+      setMovementDate(stock?.movement_date ?? new Date().toISOString().slice(0, 10));
       setError("");
     }
   }, [open, stock]);
@@ -50,8 +54,8 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
       const url    = isEdit ? `/api/stock/${stock!.id}` : "/api/stock";
       const method = isEdit ? "PATCH" : "POST";
       const body   = isEdit
-        ? { bagStock: Number(bagStock), packetStock: Number(packetStock) }
-        : { seedId, batchNumber: batchNumber.trim(), bagStock: Number(bagStock), packetStock: Number(packetStock) };
+        ? { bagStock: Number(bagStock), packetStock: Number(packetStock), notes: notes || null, movementDate: movementDate || null }
+        : { seedId, batchNumber: batchNumber.trim(), bagStock: Number(bagStock), packetStock: Number(packetStock), notes: notes || null, movementDate: movementDate || null };
 
       const res  = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const json = await res.json();
@@ -135,6 +139,26 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
               = <span className="font-semibold text-foreground">{totalPackets} packets</span>
             </p>
           )}
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Stock Date</Label>
+            <Input
+              type="date"
+              value={movementDate}
+              onChange={(e) => setMovementDate(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">The date the stock was physically received or adjusted.</p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Notes / Reason</Label>
+            <textarea
+              className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              placeholder="e.g. Received from supplier, correcting counting error…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
 
           {error && (
             <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>

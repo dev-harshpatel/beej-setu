@@ -14,7 +14,7 @@ export const GET = withAuth(async () => {
   ] = await Promise.all([
     db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true),
     db.from("profiles").select("*", { count: "exact", head: true }).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true),
-    db.from("orders").select("*", { count: "exact", head: true }).neq("status", "DRAFT"),
+    db.from("orders").select("*", { count: "exact", head: true }),
     db.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
     db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE").is("deleted_at", null),
   ]);

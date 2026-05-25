@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -18,18 +19,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OrderStatusBadge } from "./order-status-badge";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuth } from "@/hooks/use-auth";
+import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { OrderWithRelations } from "@/types/order.types";
-import type { OrderRow } from "@/types/database.types";
+import {
+  ORDER_STATUSES,
+  type OrderStatusValue,
+} from "@/constants/order-status.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
 
-type TabValue = "all" | "pending" | "confirmed" | "dispatched";
-type OrderStatus = OrderRow["status"];
+type TabValue = "all" | "pending" | "approved" | "dispatched";
 
-const TAB_STATUS: Record<TabValue, OrderStatus | undefined> = {
-  all: undefined,
-  pending: "PENDING",
-  confirmed: "CONFIRMED",
-  dispatched: "SHIPPED",
+const TAB_STATUS: Record<TabValue, OrderStatusValue | undefined> = {
+  all:       undefined,
+  pending:   ORDER_STATUSES.PENDING,
+  approved:  ORDER_STATUSES.APPROVED,
+  dispatched: ORDER_STATUSES.SHIPPED,
 };
 
 const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
@@ -38,44 +42,34 @@ export function StaffOrders() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [page, setPage] = useState(1);
-  const [orders, setOrders] = useState<OrderWithRelations[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  const fetchOrders = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
+  const { data, isFetching } = useQuery({
+    queryKey: [
+      ...QUERY_KEYS.ORDERS,
+      { staffId: user?.id, page, pageSize: PAGE_SIZE, status: TAB_STATUS[activeTab] },
+    ],
+    queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        staffId: user.id,
+        staffId: user!.id,
       });
       const status = TAB_STATUS[activeTab];
       if (status) params.set("status", status);
-
-      const res = await fetch(`/api/orders?${params}`);
+      const res  = await fetch(`/api/orders?${params}`);
       const json = await res.json();
-      if (json.success) {
-        setOrders(json.data?.data ?? []);
-        setTotal(json.data?.total ?? 0);
-      }
-    } catch {
-      setOrders([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, page, user?.id]);
+      if (!json.success) throw new Error("Failed to fetch orders");
+      return json.data as { data: OrderWithRelations[]; total: number };
+    },
+    enabled: !!user?.id,
+    placeholderData: keepPreviousData,
+  });
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const orders  = data?.data ?? [];
+  const total   = data?.total ?? 0;
+  const loading = isFetching && !data;
 
-  function handleTabChange(value: string) {
-    setActiveTab(value as TabValue);
-    setPage(1);
-  }
+  function handleTabChange(value: string) { setActiveTab(value as TabValue); setPage(1); }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -103,7 +97,7 @@ export function StaffOrders() {
         <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="dispatched">Dispatched</TabsTrigger>
         </TabsList>
       </Tabs>
