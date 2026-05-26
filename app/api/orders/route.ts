@@ -12,11 +12,13 @@ export const GET = withAuth(
     const { searchParams } = req.nextUrl;
     const db = getSupabaseAdminClient();
 
+    const statusesParam = searchParams.get("statuses");
     const result = await ordersQueries.getAll(db, {
       page: Number(searchParams.get("page") ?? 1),
       pageSize: Number(searchParams.get("pageSize") ?? 20),
       search: searchParams.get("search") ?? undefined,
       status: searchParams.get("status") ?? undefined,
+      statuses: statusesParam ? statusesParam.split(",") : undefined,
       dealerId: searchParams.get("dealerId") ?? undefined,
       staffId: searchParams.get("staffId") ?? undefined,
       dateFrom: searchParams.get("dateFrom") ?? undefined,

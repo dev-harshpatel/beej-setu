@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
-import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderStatusBadge } from "./order-status-badge";
+import { OrderDetailDrawer } from "./order-detail-drawer";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuth } from "@/hooks/use-auth";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
@@ -40,8 +41,11 @@ const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 
 export function StaffOrders() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [page, setPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data, isFetching } = useQuery({
     queryKey: [
@@ -112,6 +116,7 @@ export function StaffOrders() {
                 <TableHead>Dealer</TableHead>
                 <TableHead className="hidden sm:table-cell">Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,6 +126,7 @@ export function StaffOrders() {
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-7 w-8 ml-auto" /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -147,6 +153,7 @@ export function StaffOrders() {
                 <TableHead>Dealer</TableHead>
                 <TableHead className="hidden sm:table-cell">Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,6 +177,19 @@ export function StaffOrders() {
                   </TableCell>
                   <TableCell>
                     <OrderStatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => { setSelectedOrder(order); setDrawerOpen(true); }}
+                      >
+                        <EyeIcon className="size-3.5" />
+                        View
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -206,6 +226,18 @@ export function StaffOrders() {
           </div>
         </div>
       )}
+
+      {/* Read-only order detail drawer */}
+      <OrderDetailDrawer
+        order={selectedOrder}
+        open={drawerOpen}
+        readOnly
+        onClose={() => setDrawerOpen(false)}
+        onStatusChange={async () => {}}
+        onUpdate={async () => {}}
+        onCreateChallan={() => {}}
+        onRefresh={() => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORDERS })}
+      />
     </div>
   );
 }

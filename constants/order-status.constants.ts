@@ -38,9 +38,9 @@ export const ORDER_STATUS_BADGE_CLASSES: Record<OrderStatusValue, string> = {
 };
 
 // The statuses an admin can manually assign to an order
+// PARTIALLY_APPROVED is excluded — it is set automatically when approved qty < ordered qty
 export const ADMIN_SETTABLE_STATUSES: OrderStatusValue[] = [
   ORDER_STATUSES.APPROVED,
-  ORDER_STATUSES.PARTIALLY_APPROVED,
   ORDER_STATUSES.HOLD,
   ORDER_STATUSES.CANCELLED,
   ORDER_STATUSES.SHIPPED,

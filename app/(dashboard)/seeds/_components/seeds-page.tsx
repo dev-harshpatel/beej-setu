@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { usePermissions } from "@/hooks";
+import { PERMISSIONS } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
 import { SeedsHeader } from "./seeds-header";
 import { SeedsFilters, type SeedFilters } from "./seeds-filters";
 import { SeedsTable } from "./seeds-table";
 import { SeedsEmpty } from "./seeds-empty";
 import { SeedsPagination } from "./seeds-pagination";
+import { SeedDetailSheet } from "./seed-detail-sheet";
 import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
 import type { CropRow } from "@/types/database.types";
 
@@ -15,6 +18,8 @@ const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 export function SeedsPage() {
   const [isPending, startTransition] = useTransition();
   const [initialized, setInitialized] = useState(false);
+  const { hasPermission } = usePermissions();
+  const canViewStock = hasPermission(PERMISSIONS.STOCK_MANAGE);
   const loading = !initialized || isPending;
 
   const [products, setProducts] = useState<SeedProductWithCropRow[]>([]);
@@ -23,6 +28,7 @@ export function SeedsPage() {
   const [filters, setFilters]   = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
   const [crops, setCrops]       = useState<CropRow[]>([]);
   const [varieties, setVarieties] = useState<string[]>([]);
+  const [selectedSeed, setSelectedSeed] = useState<SeedProductWithCropRow | null>(null);
 
   const fetchProducts = useCallback(() => {
     startTransition(async () => {
@@ -77,21 +83,30 @@ export function SeedsPage() {
   const hasFilters = !!(filters.search || filters.cropId || filters.variety);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <SeedsHeader total={total} />
-      <SeedsFilters filters={filters} crops={crops} varieties={varieties} onChange={handleFiltersChange} />
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-4 px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
+        <SeedsHeader total={total} />
+        <SeedsFilters filters={filters} crops={crops} varieties={varieties} onChange={handleFiltersChange} />
+      </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 sm:px-5">
         {!loading && products.length === 0 ? (
           <SeedsEmpty hasFilters={hasFilters} />
         ) : (
-          <SeedsTable products={products} loading={loading} />
+          <SeedsTable products={products} loading={loading} onRowClick={setSelectedSeed} canViewStock={canViewStock} />
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-background border-t py-2.5">
+      <div className="shrink-0 border-t px-4 sm:px-5 py-2.5">
         <SeedsPagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
+
+      <SeedDetailSheet
+        seed={selectedSeed}
+        open={!!selectedSeed}
+        onClose={() => setSelectedSeed(null)}
+        canViewStock={canViewStock}
+      />
     </div>
   );
 }

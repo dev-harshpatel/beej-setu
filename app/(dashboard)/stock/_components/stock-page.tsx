@@ -12,6 +12,7 @@ import { StockEmpty } from "./stock-empty";
 import { StockPagination } from "./stock-pagination";
 import { StockFormDialog } from "./stock-form-dialog";
 import { StockDeleteDialog } from "./stock-delete-dialog";
+import { StockUploadDialog } from "./stock-upload-dialog";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { SeedStockWithDetails } from "@/lib/database/stock.queries";
 import type { CropRow } from "@/types/database.types";
@@ -25,10 +26,11 @@ export function StockPage() {
 
   const [page, setPage]         = useState(1);
   const [filters, setFilters]   = useState<StockFiltersType>({ search: "", cropId: "" });
-  const [formOpen, setFormOpen]     = useState(false);
-  const [editStock, setEditStock]   = useState<SeedStockWithDetails | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [formOpen, setFormOpen]       = useState(false);
+  const [editStock, setEditStock]     = useState<SeedStockWithDetails | null>(null);
+  const [deleteOpen, setDeleteOpen]   = useState(false);
   const [deleteStock, setDeleteStock] = useState<SeedStockWithDetails | null>(null);
+  const [uploadOpen, setUploadOpen]   = useState(false);
 
   // ── Stock list ────────────────────────────────────────────
   // Realtime invalidation automatically refetches when seed_stock changes.
@@ -82,11 +84,13 @@ export function StockPage() {
   const hasFilters = !!(filters.search || filters.cropId);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <StockHeader total={total} canManage={canManage} onAdd={() => { setEditStock(null); setFormOpen(true); }} />
-      <StockFilters filters={filters} crops={crops} onChange={handleFiltersChange} />
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col gap-4 px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
+        <StockHeader total={total} canManage={canManage} onAdd={() => { setEditStock(null); setFormOpen(true); }} onUpload={() => setUploadOpen(true)} />
+        <StockFilters filters={filters} crops={crops} onChange={handleFiltersChange} />
+      </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 sm:px-5">
         {!loading && rows.length === 0 ? (
           <StockEmpty hasFilters={hasFilters} />
         ) : (
@@ -98,9 +102,14 @@ export function StockPage() {
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-background border-t py-2.5">
+      <div className="shrink-0 bg-background border-t px-4 sm:px-5 py-2.5">
         <StockPagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
+
+      <StockUploadDialog
+        open={uploadOpen} onOpenChange={setUploadOpen}
+        onSuccess={() => setUploadOpen(false)}
+      />
 
       {/* onSuccess is now a no-op — realtime invalidation handles the refetch */}
       <StockFormDialog

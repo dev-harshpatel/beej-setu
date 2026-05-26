@@ -23,7 +23,7 @@ export const ordersQueries = {
 
   async getAll(
     db: SupabaseClient<Database>,
-    params?: PaginationParams & { status?: string; dealerId?: string; staffId?: string; dateFrom?: string; dateTo?: string }
+    params?: PaginationParams & { status?: string; statuses?: string[]; dealerId?: string; staffId?: string; dateFrom?: string; dateTo?: string }
   ) {
     const page = params?.page ?? 1;
     const pageSize = params?.pageSize ?? 20;
@@ -37,7 +37,9 @@ export const ordersQueries = {
     if (params?.search) {
       query = query.ilike("order_number", `%${params.search}%`);
     }
-    if (params?.status) {
+    if (params?.statuses && params.statuses.length > 0) {
+      query = query.in("status", params.statuses as OrderRow["status"][]);
+    } else if (params?.status) {
       query = query.eq("status", params.status as OrderRow["status"]);
     }
     if (params?.dealerId) {

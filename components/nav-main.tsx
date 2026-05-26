@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRightIcon } from "lucide-react";
@@ -23,6 +24,40 @@ import { useStoreHydrated } from "@/hooks/use-store-hydrated";
 import { useDashboardStore } from "@/store/dashboard.store";
 import { ROUTES } from "@/constants/routes.constants";
 import type { NavItem } from "@/constants/navigation.constants";
+
+function NavCollapsibleItem({ item, isActive, pathname }: { item: NavItem; isActive: boolean; pathname: string }) {
+  const [open, setOpen] = useState(isActive);
+
+  return (
+    <SidebarMenuItem>
+      <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible w-full">
+        <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} tooltip={item.label} />}>
+          <item.icon />
+          <span className="flex-1">{item.label}</span>
+          <ChevronRightIcon className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {item.children!.map((child) => {
+              const childActive = pathname === child.href;
+              return (
+                <SidebarMenuSubItem key={child.label}>
+                  <SidebarMenuSubButton
+                    render={<Link href={child.href} />}
+                    isActive={childActive}
+                  >
+                    {child.icon && <child.icon className="size-3.5" />}
+                    <span>{child.label}</span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuItem>
+  );
+}
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
@@ -60,36 +95,16 @@ export function NavMain({ items }: { items: NavItem[] }) {
           const badgeCount = isOrders ? pendingOrdersCount : 0;
 
           if (item.children?.length) {
+            const visibleChildren = item.children.filter(
+              (child) => !child.permission || hasPermission(child.permission)
+            );
             return (
-              <SidebarMenuItem key={item.label}>
-                <Collapsible defaultOpen={isActive} className="group/collapsible w-full">
-                  <CollapsibleTrigger render={<SidebarMenuButton isActive={isActive} tooltip={item.label} />}>
-                    <item.icon />
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRightIcon className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.children.map((child) => {
-                        const childActive =
-                          pathname === child.href ||
-                          pathname.startsWith(child.href + "/");
-                        return (
-                          <SidebarMenuSubItem key={child.label}>
-                            <SidebarMenuSubButton
-                              render={<Link href={child.href} />}
-                              isActive={childActive}
-                            >
-                              {child.icon && <child.icon className="size-3.5" />}
-                              <span>{child.label}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        );
-                      })}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </Collapsible>
-              </SidebarMenuItem>
+              <NavCollapsibleItem
+                key={item.label}
+                item={{ ...item, children: visibleChildren }}
+                isActive={isActive}
+                pathname={pathname}
+              />
             );
           }
 

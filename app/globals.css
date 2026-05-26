@@ -106,6 +106,25 @@
   --radius-full: 9999px;
 }
 
+/* Collapsible panel open/close animation (Base UI) */
+[data-slot="collapsible-content"] {
+  overflow: hidden;
+}
+[data-slot="collapsible-content"][data-open] {
+  animation: collapsible-open 200ms ease-out;
+}
+[data-slot="collapsible-content"][data-closed] {
+  animation: collapsible-close 200ms ease-out;
+}
+@keyframes collapsible-open {
+  from { height: 0; }
+  to   { height: var(--collapsible-panel-height); }
+}
+@keyframes collapsible-close {
+  from { height: var(--collapsible-panel-height); }
+  to   { height: 0; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

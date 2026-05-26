@@ -10,7 +10,17 @@
 --   3. Replace confirm_order() RPC with approve_order(id, status)
 -- ═══════════════════════════════════════════════════════════════
 
--- ── Step 1: Migrate existing data ────────────────────────────────
+-- ── Step 1: Drop the old CHECK constraint ────────────────────────
+DO $$
+BEGIN
+  ALTER TABLE public.orders
+    DROP CONSTRAINT IF EXISTS orders_status_check;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END;
+$$;
+
+-- ── Step 2: Migrate existing data ────────────────────────────────
 -- CONFIRMED / PROCESSING  → APPROVED
 -- DELIVERED               → SHIPPED  (already dispatched, closest equivalent)
 -- DRAFT                   → PENDING  (not yet submitted = pending review)
@@ -30,18 +40,7 @@ UPDATE public.orders
 SET status = 'PENDING'
 WHERE status = 'DRAFT';
 
--- ── Step 2: Swap the CHECK constraint ────────────────────────────
--- Drop the old constraint by name (Postgres auto-names it orders_status_check).
--- Use a DO block to handle cases where the name differs.
-DO $$
-BEGIN
-  ALTER TABLE public.orders
-    DROP CONSTRAINT IF EXISTS orders_status_check;
-EXCEPTION
-  WHEN undefined_object THEN NULL;
-END;
-$$;
-
+-- ── Step 3: Add the new CHECK constraint ─────────────────────────
 ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_check
   CHECK (status IN (

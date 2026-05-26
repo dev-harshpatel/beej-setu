@@ -6,7 +6,7 @@ import { EyeIcon, XIcon } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -28,29 +28,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { OrderStatusBadge } from "../../orders/_components/order-status-badge";
 import type { DealerRow } from "@/types/database.types";
 import type { OrderWithRelations } from "@/types/order.types";
-import { ORDER_STATUS_LABELS } from "@/constants/order-status.constants";
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:              "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  APPROVED:             "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  PARTIALLY_APPROVED:   "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  HOLD:                 "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  CANCELLED:            "bg-destructive/10 text-destructive",
-  GODOWN_DISPATCHED:    "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
-  TRANSPORT_DISPATCHED: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-  SHIPPED:              "bg-accent text-accent-foreground",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? "bg-muted text-muted-foreground"}`}>
-      {ORDER_STATUS_LABELS[status as keyof typeof ORDER_STATUS_LABELS] ?? status}
-    </span>
-  );
-}
+import type { OrderStatusValue } from "@/constants/order-status.constants";
 
 // ── Order detail sheet ────────────────────────────────────────────────────────
 function OrderDetailSheet({
@@ -62,64 +43,80 @@ function OrderDetailSheet({
 }) {
   return (
     <Sheet open={!!order} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader className="pr-8">
-          <SheetTitle className="font-mono text-sm">
-            {order?.order_number ?? "Order Details"}
-          </SheetTitle>
-          <p className="text-xs text-muted-foreground">
-            {order && new Date(order.created_at).toLocaleDateString("en-IN", {
-              day: "2-digit", month: "short", year: "numeric",
-            })}
-          </p>
+      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0" showCloseButton={false}>
+        {/* Header */}
+        <SheetHeader className="flex flex-row items-center justify-between border-b px-4 py-3 gap-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <SheetTitle className="font-mono text-sm font-semibold truncate">
+              {order?.order_number ?? "Order Details"}
+            </SheetTitle>
+            {order && <OrderStatusBadge status={order.status as OrderStatusValue} />}
+          </div>
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <XIcon className="size-4" />
+          </Button>
         </SheetHeader>
 
         {order && (
-          <div className="mt-4 flex flex-col gap-4">
-            {/* Status + transport */}
-            <div className="flex items-center gap-3">
-              <StatusBadge status={order.status} />
-              {order.transport_name && (
-                <span className="text-xs text-muted-foreground">
-                  via {order.transport_name}
+          <div className="flex flex-col gap-5 px-4 py-5">
+            {/* Summary grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Date</span>
+                <span className="text-sm font-medium">
+                  {new Date(order.created_at).toLocaleDateString("en-IN", {
+                    day: "2-digit", month: "short", year: "numeric",
+                  })}
                 </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Dealer</span>
+                <span className="text-sm font-medium">{order.dealer?.name ?? "—"}</span>
+                {order.dealer?.territory && (
+                  <span className="text-xs text-muted-foreground">{order.dealer.territory}</span>
+                )}
+              </div>
+              {order.staff && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Staff</span>
+                  <span className="text-sm font-medium">{order.staff.name}</span>
+                </div>
+              )}
+              {order.transport_name && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Transport</span>
+                  <span className="text-sm font-medium">{order.transport_name}</span>
+                </div>
               )}
             </div>
 
-            {/* Dealer info */}
-            <div className="rounded-md border border-border p-3 text-sm">
-              <p className="text-xs text-muted-foreground mb-1">Dealer</p>
-              <p className="font-medium">{order.dealer?.name}</p>
-              {order.dealer?.territory && (
-                <p className="text-muted-foreground text-xs">{order.dealer.territory}</p>
-              )}
-            </div>
+            <Separator />
 
-            {/* Order items */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                Items ({order.items?.length ?? 0})
-              </p>
-              <div className="rounded-md border border-border overflow-hidden">
+            {/* Items */}
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold">Order Items ({order.items?.length ?? 0})</h3>
+              <div className="overflow-x-auto rounded-md border border-border">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Product</th>
-                      <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">Qty</th>
-                      <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">Unit</th>
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Seed</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Unit</th>
+                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(order.items ?? []).map((item) => (
-                      <tr key={item.id} className="border-t border-border">
-                        <td className="px-3 py-2">
-                          <p className="font-medium">{item.seed?.variety ?? "—"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {item.seed?.crops?.name} · {item.seed?.pack_size}
-                          </p>
+                      <tr key={item.id} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2 font-medium">
+                          <div>{item.seed?.crops?.name ?? "—"}</div>
+                          {item.seed?.variety && (
+                            <div className="text-xs text-muted-foreground">
+                              {item.seed.variety}{item.seed.pack_size ? ` · ${item.seed.pack_size}` : ""}
+                            </div>
+                          )}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums font-semibold">{item.quantity}</td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">{item.unit}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground">{item.unit ?? "—"}</td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{item.quantity}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -129,9 +126,13 @@ function OrderDetailSheet({
 
             {/* Notes */}
             {order.notes && (
-              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                {order.notes}
-              </div>
+              <>
+                <Separator />
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-medium text-muted-foreground">Notes</p>
+                  <p className="text-sm">{order.notes}</p>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -230,21 +231,25 @@ export default function DealerReportPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">From</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(v) => {
+                setDateFrom(v);
+                if (dateTo && v && v > dateTo) setDateTo("");
+              }}
+              placeholder="Start date"
+              className="w-40"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">To</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={setDateTo}
+              placeholder="End date"
+              minDate={dateFrom || undefined}
+              className="w-40"
             />
           </div>
 
@@ -342,7 +347,7 @@ export default function DealerReportPage() {
                           })}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={order.status} />
+                          <OrderStatusBadge status={order.status as OrderStatusValue} />
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                           {order.items?.length ?? 0}

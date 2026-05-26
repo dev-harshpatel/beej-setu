@@ -17,6 +17,7 @@ export const ROUTES = {
     CREATE: "/orders/create",
     DETAIL: (id: string) => `/orders/${id}`,
     EDIT: (id: string) => `/orders/${id}/edit`,
+    CHALLAN: (id: string) => `/orders/${id}/challan`,
   },
 
   DEALERS: {

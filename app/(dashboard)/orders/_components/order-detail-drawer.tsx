@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangleIcon,
+  ArrowRightIcon,
   CalendarIcon,
   CheckCircleIcon,
   ClipboardListIcon,
   ClockIcon,
+  PackageIcon,
   PauseCircleIcon,
   PencilIcon,
   UserIcon,
   XCircleIcon,
   XIcon,
 } from "lucide-react";
+import type { SeedAvailability } from "@/app/api/stock/availability/route";
 import {
   Sheet,
   SheetContent,
@@ -41,6 +46,8 @@ import {
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
 import { ROUTES } from "@/constants/routes.constants";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/constants/roles.constants";
 import type { OrderWithRelations } from "@/types/order.types";
 
 const STOCK_IMPACT_STATUSES: OrderStatusValue[] = [
@@ -59,10 +66,138 @@ interface EditFields {
 type OrderUnit = "Bag" | "Packet" | "Box";
 type ItemEdit = { quantity: number; unit: OrderUnit };
 
+// ── Stock Summary Panel ───────────────────────────────────────────────────────
+
+function StockSummaryPanel({ order }: { order: OrderWithRelations }) {
+  const seedIds = (order.items ?? [])
+    .map((i) => i.seed_id)
+    .filter((id): id is string => !!id);
+
+  const { data: availability, isLoading } = useQuery<SeedAvailability[]>({
+    queryKey: ["stock-availability", seedIds],
+    queryFn: async () => {
+      const res = await fetch(`/api/stock/availability?seedIds=${seedIds.join(",")}`);
+      const json = await res.json();
+      if (!json.success) throw new Error("Failed to fetch stock");
+      return json.data as SeedAvailability[];
+    },
+    enabled: seedIds.length > 0,
+    staleTime: 30_000,
+  });
+
+  const stockMap = Object.fromEntries((availability ?? []).map((s) => [s.seed_id, s]));
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+      <div className="flex items-center gap-2 border-b border-amber-200 dark:border-amber-900 px-3 py-2">
+        <PackageIcon className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+          Stock Availability Preview
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+          <span className="size-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+          Checking stock…
+        </div>
+      ) : (
+        <div className="flex flex-col divide-y divide-amber-100 dark:divide-amber-900/60">
+          {(order.items ?? []).map((item) => {
+            const stock = item.seed_id ? stockMap[item.seed_id] : undefined;
+            const unit = (item.unit ?? "Bag") as "Bag" | "Packet";
+            const ppb = stock?.packets_per_bag ?? 1;
+
+            // Convert order qty to bags & packets for display
+            const orderBags = unit === "Bag" ? item.quantity : 0;
+            const orderPackets = unit === "Packet" ? item.quantity : 0;
+
+            const availBags = stock?.bag_stock ?? 0;
+            const availPackets = stock?.packet_stock ?? 0;
+
+            // Total in packets for comparison
+            const availTotal = availBags * ppb + availPackets;
+            const orderTotal = orderBags * ppb + orderPackets;
+            const afterTotal = availTotal - orderTotal;
+
+            const sufficient = afterTotal >= 0;
+
+            const afterBags = sufficient ? Math.floor(afterTotal / ppb) : Math.floor(Math.abs(afterTotal) / ppb);
+            const afterPkts = sufficient ? afterTotal % ppb : Math.abs(afterTotal) % ppb;
+
+            const seedName = item.seed?.crops?.name ?? "—";
+            const variety = item.seed?.variety ?? "";
+
+            return (
+              <div key={item.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 text-xs">
+                {/* Seed name */}
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground truncate">{seedName}</p>
+                  {variety && <p className="text-muted-foreground truncate">{variety}</p>}
+                </div>
+
+                {/* Available */}
+                <div className="text-right">
+                  <p className="text-muted-foreground leading-tight">Available</p>
+                  {stock ? (
+                    <p className="font-semibold tabular-nums text-foreground">
+                      {availBags > 0 && <span>{availBags} bag{availBags !== 1 ? "s" : ""}</span>}
+                      {availBags > 0 && availPackets > 0 && <span className="text-muted-foreground"> + </span>}
+                      {availPackets > 0 && <span>{availPackets} pkt{availPackets !== 1 ? "s" : ""}</span>}
+                      {availBags === 0 && availPackets === 0 && <span className="text-destructive">0</span>}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
+                </div>
+
+                {/* Arrow */}
+                <ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
+
+                {/* After approval */}
+                <div className="text-right min-w-[5rem]">
+                  <p className="text-muted-foreground leading-tight">After</p>
+                  {stock ? (
+                    <p className={`font-semibold tabular-nums flex items-center justify-end gap-1 ${sufficient ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                      {!sufficient && <AlertTriangleIcon className="size-3 shrink-0" />}
+                      {sufficient ? (
+                        <>
+                          {afterBags > 0 && <span>{afterBags} bag{afterBags !== 1 ? "s" : ""}</span>}
+                          {afterBags > 0 && afterPkts > 0 && <span className="text-muted-foreground">+</span>}
+                          {afterPkts > 0 && <span>{afterPkts} pkt{afterPkts !== 1 ? "s" : ""}</span>}
+                          {afterTotal === 0 && <span>0</span>}
+                        </>
+                      ) : (
+                        <span>Short {afterBags > 0 ? `${afterBags}bg` : ""}{afterPkts > 0 ? ` ${afterPkts}pk` : ""}</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Order deduction summary row */}
+          <div className="flex items-center justify-between px-3 py-2 bg-amber-100/60 dark:bg-amber-900/20">
+            <span className="text-xs text-amber-700 dark:text-amber-400">
+              Order deduction: {(order.items ?? []).map((i) => `${i.quantity} ${i.unit ?? "Bag"}`).join(", ")}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface OrderDetailDrawerProps {
   order: OrderWithRelations | null;
   open: boolean;
   initialMode?: "view" | "edit";
+  readOnly?: boolean;
   onClose: () => void;
   onStatusChange: (id: string, status: OrderStatusValue) => Promise<void>;
   onUpdate: (id: string, fields: Partial<EditFields>, itemEdits?: Record<string, ItemEdit>) => Promise<void>;
@@ -74,6 +209,7 @@ export function OrderDetailDrawer({
   order,
   open,
   initialMode = "view",
+  readOnly = false,
   onClose,
   onStatusChange,
   onUpdate,
@@ -81,6 +217,9 @@ export function OrderDetailDrawer({
   onRefresh,
 }: OrderDetailDrawerProps) {
   const [mode, setMode] = useState<"view" | "edit">(initialMode);
+  const { hasPermission } = usePermissions();
+  const canViewLedger = hasPermission(PERMISSIONS.STOCK_MANAGE);
+
   const [editFields, setEditFields] = useState<EditFields>({ notes: "", delivery_date: "" });
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
   const [pendingStatus, setPendingStatus] = useState<OrderStatusValue | "">("");
@@ -167,8 +306,9 @@ export function OrderDetailDrawer({
       await onStatusChange(order.id, pendingStatus as OrderStatusValue);
       setPendingStatus("");
       onRefresh();
-    } catch {
-      setSaveError("Failed to update status.");
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? (err instanceof Error ? err.message : null);
+      setSaveError(msg ?? "Failed to update status.");
     } finally {
       setStatusSaving(false);
     }
@@ -196,19 +336,25 @@ export function OrderDetailDrawer({
         {/* Header */}
         <SheetHeader className="flex flex-row items-center justify-between border-b px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3 min-w-0">
-            <SheetTitle className="font-mono text-sm font-semibold truncate">
-              {order.order_number}
-            </SheetTitle>
-            <OrderStatusBadge status={order.status as OrderStatusValue} />
+            {mode === "edit" ? (
+              <SheetTitle className="text-sm font-semibold truncate">
+                Edit Order
+              </SheetTitle>
+            ) : (
+              <>
+                <SheetTitle className="sr-only">{order.order_number}</SheetTitle>
+                <OrderStatusBadge status={order.status as OrderStatusValue} />
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {mode === "view" && (
+            {!readOnly && mode === "view" && (
               <Button variant="outline" size="sm" onClick={handleOpenEdit}>
                 <PencilIcon className="size-3.5" />
                 Edit
               </Button>
             )}
-            {canCreateChallan && mode === "view" && (
+            {!readOnly && canCreateChallan && mode === "view" && (
               <Button
                 size="sm"
                 className="bg-accent text-accent-foreground hover:bg-accent/80 border-0"
@@ -258,7 +404,7 @@ export function OrderDetailDrawer({
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Seed</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Unit</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground w-32">Unit</th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
                   </tr>
                 </thead>
@@ -270,7 +416,7 @@ export function OrderDetailDrawer({
                         {item.seed?.variety && (
                           <div className="text-xs text-muted-foreground">{item.seed.variety}</div>
                         )}
-                        {STOCK_IMPACT_STATUSES.includes(order.status as OrderStatusValue) && item.seed_id && (
+                        {canViewLedger && STOCK_IMPACT_STATUSES.includes(order.status as OrderStatusValue) && item.seed_id && (
                           <a
                             href={`${ROUTES.STOCK.LEDGER}?seedId=${item.seed_id}`}
                             className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
@@ -279,42 +425,49 @@ export function OrderDetailDrawer({
                           </a>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right text-muted-foreground">
+                      <td className="px-3 py-2 text-muted-foreground w-32">
                         {mode === "edit" ? (
-                          <select
+                          <Select
                             value={itemEdits[item.id]?.unit ?? item.unit ?? "Bag"}
-                            onChange={(e) =>
+                            onValueChange={(v) =>
                               setItemEdits((prev) => ({
                                 ...prev,
-                                [item.id]: { ...prev[item.id], unit: e.target.value as OrderUnit },
+                                [item.id]: {
+                                  quantity: prev[item.id]?.quantity ?? item.quantity,
+                                  unit: v as OrderUnit,
+                                },
                               }))
                             }
-                            className="rounded border border-input bg-background px-2 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
                           >
-                            <option value="Bag">Bag</option>
-                            <option value="Packet">Packet</option>
-                            <option value="Box">Box</option>
-                          </select>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Bag">Bag</SelectItem>
+                              <SelectItem value="Packet">Packet</SelectItem>
+                              <SelectItem value="Box">Box</SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : (
-                          item.unit ?? item.seed?.pack_size ?? "—"
+                          <span className="block text-right">{item.unit ?? item.seed?.pack_size ?? "—"}</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">
                         {mode === "edit" ? (
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             value={itemEdits[item.id]?.quantity ?? item.quantity}
                             onChange={(e) =>
                               setItemEdits((prev) => ({
                                 ...prev,
                                 [item.id]: {
-                                  ...prev[item.id],
-                                  quantity: Math.max(1, Number(e.target.value)),
+                                  quantity: Number(e.target.value),
+                                  unit: prev[item.id]?.unit ?? (item.unit ?? "Bag") as OrderUnit,
                                 },
                               }))
                             }
-                            className="w-16 rounded border border-input bg-transparent px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
+                            className="w-16 rounded border border-input bg-transparent px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-ring focus:ring-1 focus:ring-ring/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           />
                         ) : (
                           item.quantity
@@ -326,6 +479,11 @@ export function OrderDetailDrawer({
               </table>
             </div>
           </div>
+
+          {/* Stock availability preview — shown for pending orders in view mode */}
+          {order.status === ORDER_STATUSES.PENDING && mode === "view" && !readOnly && (
+            <StockSummaryPanel order={order} />
+          )}
 
           {/* Editable fields */}
           {mode === "edit" ? (
@@ -403,7 +561,7 @@ export function OrderDetailDrawer({
           <Separator />
 
           {/* Quick actions */}
-          {order.status === ORDER_STATUSES.PENDING && mode === "view" && (
+          {!readOnly && order.status === ORDER_STATUSES.PENDING && mode === "view" && (
             <>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-semibold">Actions</h3>
@@ -440,41 +598,44 @@ export function OrderDetailDrawer({
           )}
 
           {/* Change status */}
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold">Change Status</h3>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select
-                value={pendingStatus}
-                onValueChange={(v) => setPendingStatus(v as OrderStatusValue)}
-              >
-                <SelectTrigger className="w-full sm:w-56">
-                  <SelectValue
-                    placeholder={`Current: ${ORDER_STATUS_LABELS[order.status as OrderStatusValue] ?? order.status}`}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {ADMIN_SETTABLE_STATUSES.filter((s) => s !== order.status).map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {ORDER_STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                disabled={!pendingStatus || statusSaving}
-                onClick={handleStatusSave}
-              >
-                <CheckCircleIcon className="size-3.5" />
-                {statusSaving ? "Updating…" : "Update Status"}
-              </Button>
-            </div>
-            {saveError && !saving && (
-              <p className="text-sm text-destructive">{saveError}</p>
-            )}
-          </div>
-
-          <Separator />
+          {!readOnly && (
+            <>
+              <div className="flex flex-col gap-2">
+                <h3 className="text-sm font-semibold">Change Status</h3>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select
+                    value={pendingStatus}
+                    onValueChange={(v) => setPendingStatus(v as OrderStatusValue)}
+                  >
+                    <SelectTrigger className="w-full sm:w-56">
+                      <SelectValue
+                        placeholder={`Current: ${ORDER_STATUS_LABELS[order.status as OrderStatusValue] ?? order.status}`}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ADMIN_SETTABLE_STATUSES.filter((s) => s !== order.status).map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {ORDER_STATUS_LABELS[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={!pendingStatus || statusSaving}
+                    onClick={handleStatusSave}
+                  >
+                    <CheckCircleIcon className="size-3.5" />
+                    {statusSaving ? "Updating…" : "Update Status"}
+                  </Button>
+                </div>
+                {saveError && !saving && (
+                  <p className="text-sm text-destructive">{saveError}</p>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
 
           {/* History */}
           <div className="flex flex-col gap-3">

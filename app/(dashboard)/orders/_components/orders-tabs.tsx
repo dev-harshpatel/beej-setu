@@ -2,19 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { OrdersFilters } from "./orders-filters";
 import { OrdersTable } from "./orders-table";
 import { OrderDetailDrawer } from "./order-detail-drawer";
 import { OrderConfirmModal } from "./order-confirm-modal";
-import { CreateChallanDialog } from "./create-challan-dialog";
 import {
   ORDER_STATUSES,
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
 import { ROLES } from "@/constants/roles.constants";
+import { ROUTES } from "@/constants/routes.constants";
 import { useAuthStore } from "@/store/auth.store";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { OrderWithRelations } from "@/types/order.types";
@@ -33,16 +41,42 @@ const ADMIN_TAB_STATUS: Record<AdminTabValue, OrderStatusValue | undefined> = {
   dispatched:         ORDER_STATUSES.SHIPPED,
 };
 
+const ADMIN_TABS: { value: AdminTabValue; label: string }[] = [
+  { value: "all",                label: "All Orders" },
+  { value: "pending",            label: "Pending" },
+  { value: "approved",           label: "Approved" },
+  { value: "partially_approved", label: "Partial" },
+  { value: "hold",               label: "Hold" },
+  { value: "dispatched",         label: "Dispatched" },
+];
+
 // ── Dispatch Staff tab config ─────────────────────────────────
+// Only orders that admin has confirmed — PENDING/HOLD/CANCELLED are hidden from dispatch staff.
+const DISPATCH_VISIBLE_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUSES.APPROVED,
+  ORDER_STATUSES.PARTIALLY_APPROVED,
+  ORDER_STATUSES.GODOWN_DISPATCHED,
+  ORDER_STATUSES.TRANSPORT_DISPATCHED,
+  ORDER_STATUSES.SHIPPED,
+];
+
 type DispatchTabValue = "all" | "ready" | "godown" | "transport" | "delivered";
 
 const DISPATCH_TAB_STATUS: Record<DispatchTabValue, OrderStatusValue | undefined> = {
-  all:       undefined,
+  all:       undefined,          // "all" for dispatch = DISPATCH_VISIBLE_STATUSES (handled below)
   ready:     ORDER_STATUSES.APPROVED,
   godown:    ORDER_STATUSES.GODOWN_DISPATCHED,
   transport: ORDER_STATUSES.TRANSPORT_DISPATCHED,
   delivered: ORDER_STATUSES.SHIPPED,
 };
+
+const DISPATCH_TABS: { value: DispatchTabValue; label: string }[] = [
+  { value: "all",       label: "All Orders" },
+  { value: "ready",     label: "Pending" },
+  { value: "godown",    label: "Godown Dispatch" },
+  { value: "transport", label: "Transport Dispatch" },
+  { value: "delivered", label: "Confirmed Order" },
+];
 
 type TabValue = AdminTabValue | DispatchTabValue;
 
@@ -50,6 +84,7 @@ const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 
 export function OrdersTabs() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { user } = useAuthStore();
   const isDispatchStaff = user?.role === ROLES.DISPATCH_STAFF;
 
@@ -67,9 +102,6 @@ export function OrdersTabs() {
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null);
   const [drawerMode, setDrawerMode]       = useState<"view" | "edit">("view");
   const [drawerOpen, setDrawerOpen]       = useState(false);
-  const [challanOrder, setChallanOrder]   = useState<OrderWithRelations | null>(null);
-  const [challanOpen, setChallanOpen]     = useState(false);
-
   const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -83,17 +115,22 @@ export function OrdersTabs() {
     ? DISPATCH_TAB_STATUS[activeTab as DispatchTabValue]
     : ADMIN_TAB_STATUS[activeTab as AdminTabValue];
 
+  // For dispatch staff on the "all" tab, restrict to confirmed-and-beyond statuses
+  const resolvedStatuses: OrderStatusValue[] | undefined =
+    isDispatchStaff && activeTab === "all" ? DISPATCH_VISIBLE_STATUSES : undefined;
+
   // ── Data fetching ─────────────────────────────────────────
   // Realtime invalidation (RealtimeInvalidationBridge) automatically refetches
   // this query whenever the orders table changes in Supabase.
   const { data, isFetching } = useQuery({
     queryKey: [
       ...QUERY_KEYS.ORDERS,
-      { page, pageSize: PAGE_SIZE, status: resolvedStatus, search: debouncedSearch, dealerId, staffId, dateFrom, dateTo },
+      { page, pageSize: PAGE_SIZE, status: resolvedStatus, statuses: resolvedStatuses, search: debouncedSearch, dealerId, staffId, dateFrom, dateTo },
     ],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
-      if (resolvedStatus)  params.set("status", resolvedStatus);
+      if (resolvedStatuses)  params.set("statuses", resolvedStatuses.join(","));
+      else if (resolvedStatus) params.set("status", resolvedStatus);
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (dealerId)        params.set("dealerId", dealerId);
       if (staffId)         params.set("staffId", staffId);
@@ -136,6 +173,8 @@ export function OrdersTabs() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.message ?? "Status update failed");
+    // Immediately update the open drawer with the server's fresh order data
+    if (json.data) setSelectedOrder(json.data as OrderWithRelations);
     invalidateOrders();
   }
 
@@ -150,7 +189,7 @@ export function OrdersTabs() {
   }
 
   function handleCreateChallan(order: OrderWithRelations) {
-    setChallanOrder(order); setChallanOpen(true);
+    router.push(ROUTES.ORDERS.CHALLAN(order.id));
   }
 
   async function handleUpdate(
@@ -171,10 +210,12 @@ export function OrdersTabs() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
       throw new Error(json.message ?? "Update failed");
     }
+    // Refresh the open drawer immediately with the server's fresh data
+    if (json.data) setSelectedOrder(json.data as OrderWithRelations);
     invalidateOrders();
   }
 
@@ -228,37 +269,59 @@ export function OrdersTabs() {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-1 min-w-0">
           <h2 className="text-xl font-semibold text-foreground">Orders</h2>
           <p className="text-sm text-muted-foreground">
             {total > 0 ? `${total} order${total !== 1 ? "s" : ""} found` : "Manage seed orders"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting || total === 0}>
-          <DownloadIcon className="size-3.5" />
-          {exporting ? "Exporting…" : "Export Excel"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Mobile-only tab dropdown */}
+          <div className="sm:hidden">
+            <Select value={activeTab} onValueChange={(v) => v && handleTabChange(v)}>
+              <SelectTrigger className="h-8 w-44 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(isDispatchStaff ? DISPATCH_TABS : ADMIN_TABS).map((t) => (
+                  <SelectItem key={t.value} value={t.value} className="text-xs">
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+
+            </Select>
+          </div>
+          {/* Export Excel — admin only, hidden on mobile */}
+          {!isDispatchStaff && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting || total === 0}
+              className="hidden sm:flex"
+            >
+              <DownloadIcon className="size-3.5" />
+              {exporting ? "Exporting…" : "Export Excel"}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs — role-specific */}
+      {/* Tabs — desktop only, role-specific */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         {isDispatchStaff ? (
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="ready">Pending</TabsTrigger>
-            <TabsTrigger value="godown">Godown Dispatch</TabsTrigger>
-            <TabsTrigger value="transport">Transport Dispatch</TabsTrigger>
-            <TabsTrigger value="delivered">Confirmed Order</TabsTrigger>
+          <TabsList className="hidden sm:flex">
+            {DISPATCH_TABS.map((t) => (
+              <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+            ))}
           </TabsList>
         ) : (
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="approved">Approved</TabsTrigger>
-            <TabsTrigger value="partially_approved">Partial</TabsTrigger>
-            <TabsTrigger value="hold">Hold</TabsTrigger>
-            <TabsTrigger value="dispatched">Dispatched</TabsTrigger>
+          <TabsList className="hidden sm:flex">
+            {ADMIN_TABS.map((t) => (
+              <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+            ))}
           </TabsList>
         )}
       </Tabs>
@@ -282,6 +345,7 @@ export function OrdersTabs() {
       <OrdersTable
         orders={orders}
         loading={loading}
+        isDispatchStaff={isDispatchStaff}
         onEdit={handleEdit}
         onApprove={handleApprove}
         onHold={handleHold}
@@ -338,12 +402,6 @@ export function OrdersTabs() {
         }}
       />
 
-      <CreateChallanDialog
-        order={challanOrder}
-        open={challanOpen}
-        onClose={() => setChallanOpen(false)}
-        onDispatched={() => { invalidateOrders(); setChallanOrder(null); }}
-      />
     </div>
   );
 }
