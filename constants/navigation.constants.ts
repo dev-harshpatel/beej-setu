@@ -56,7 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.STOCK_VIEW,
     children: [
       { label: "Inventory",    href: ROUTES.STOCK.ROOT,   icon: Warehouse },
-      { label: "Stock Ledger", href: ROUTES.STOCK.LEDGER, icon: History   },
+      { label: "Stock Ledger", href: ROUTES.STOCK.LEDGER, icon: History, permission: PERMISSIONS.STOCK_MANAGE },
     ],
   },
   {

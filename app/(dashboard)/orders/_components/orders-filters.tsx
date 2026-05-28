@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import type { DealerRow, ProfileRow } from "@/types/database.types";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 interface OrdersFiltersProps {
   search: string;
@@ -41,28 +43,36 @@ export function OrdersFilters({
   onDateToChange,
   onReset,
 }: OrdersFiltersProps) {
+  const { hasPermission } = usePermissions();
+  const canViewDealers = hasPermission(PERMISSIONS.DEALERS_VIEW);
+  const canViewUsers = hasPermission(PERMISSIONS.USERS_VIEW);
+
   const [dealers, setDealers] = useState<DealerRow[]>([]);
   const [staffList, setStaffList] = useState<ProfileRow[]>([]);
 
   useEffect(() => {
-    fetch("/api/dealers?pageSize=100")
-      .then((r) => r.json())
-      .then((json) => setDealers(json.data?.data ?? []))
-      .catch(() => setDealers([]));
+    if (canViewDealers) {
+      fetch("/api/dealers?pageSize=100")
+        .then((r) => r.json())
+        .then((json) => setDealers(json.data?.data ?? []))
+        .catch(() => setDealers([]));
+    }
 
-    Promise.all([
-      fetch("/api/users?role=STAFF&pageSize=100").then((r) => r.json()),
-      fetch("/api/users?role=ADMIN&pageSize=100").then((r) => r.json()),
-    ])
-      .then(([staff, admins]) => {
-        const all: ProfileRow[] = [
-          ...(staff.data?.data ?? []),
-          ...(admins.data?.data ?? []),
-        ];
-        setStaffList(all);
-      })
-      .catch(() => setStaffList([]));
-  }, []);
+    if (canViewUsers) {
+      Promise.all([
+        fetch("/api/users?role=STAFF&pageSize=100").then((r) => r.json()),
+        fetch("/api/users?role=ADMIN&pageSize=100").then((r) => r.json()),
+      ])
+        .then(([staff, admins]) => {
+          const all: ProfileRow[] = [
+            ...(staff.data?.data ?? []),
+            ...(admins.data?.data ?? []),
+          ];
+          setStaffList(all);
+        })
+        .catch(() => setStaffList([]));
+    }
+  }, [canViewDealers, canViewUsers]);
 
   const hasActiveFilters = dealerId || staffId || dateFrom || dateTo || search;
 
@@ -79,45 +89,49 @@ export function OrdersFilters({
         />
       </div>
 
-      {/* Dealer */}
-      <Select value={dealerId || undefined} onValueChange={(v) => onDealerChange(v ?? "")}>
-        <SelectTrigger size="sm" className="w-full sm:w-40">
-          <SelectValue placeholder="All dealers" />
-        </SelectTrigger>
-        <SelectContent>
-          {dealers.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              No dealers found
-            </div>
-          ) : (
-            dealers.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                {d.name}
-              </SelectItem>
-            ))
-          )}
-        </SelectContent>
-      </Select>
+      {/* Dealer — only for roles with dealer visibility */}
+      {canViewDealers && (
+        <Select value={dealerId || undefined} onValueChange={(v) => onDealerChange(v ?? "")}>
+          <SelectTrigger size="sm" className="w-full sm:w-40">
+            <SelectValue placeholder="All dealers" />
+          </SelectTrigger>
+          <SelectContent>
+            {dealers.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No dealers found
+              </div>
+            ) : (
+              dealers.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      )}
 
-      {/* Staff */}
-      <Select value={staffId || undefined} onValueChange={(v) => onStaffChange(v ?? "")}>
-        <SelectTrigger size="sm" className="w-full sm:w-40">
-          <SelectValue placeholder="All staff" />
-        </SelectTrigger>
-        <SelectContent>
-          {staffList.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              No staff found
-            </div>
-          ) : (
-            staffList.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))
-          )}
-        </SelectContent>
-      </Select>
+      {/* Staff — only for roles with user visibility */}
+      {canViewUsers && (
+        <Select value={staffId || undefined} onValueChange={(v) => onStaffChange(v ?? "")}>
+          <SelectTrigger size="sm" className="w-full sm:w-40">
+            <SelectValue placeholder="All staff" />
+          </SelectTrigger>
+          <SelectContent>
+            {staffList.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No staff found
+              </div>
+            ) : (
+              staffList.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Date range */}
       <div className="flex items-center gap-1.5 w-full sm:w-auto">

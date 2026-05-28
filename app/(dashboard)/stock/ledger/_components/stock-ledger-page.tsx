@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
-import { HistoryIcon } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/constants/roles.constants";
 import { StockLedgerFilters, type LedgerFilters } from "./stock-ledger-filters";
 import { BatchList } from "./batch-list";
 import { BatchSummaryCard } from "./batch-summary-card";
@@ -20,7 +21,18 @@ import type {
 const EMPTY_FILTERS: LedgerFilters = { cropId: "", variety: "", packSize: "", batchNumber: "" };
 
 export function StockLedgerPage() {
+  const router = useRouter();
+  const { hasPermission } = usePermissions();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!hasPermission(PERMISSIONS.STOCK_MANAGE)) {
+      router.replace("/stock");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!hasPermission(PERMISSIONS.STOCK_MANAGE)) return null;
 
   const [filters, setFilters]       = useState<LedgerFilters>(EMPTY_FILTERS);
   const [selectedBatch, setSelectedBatch] = useState<BatchWithStatus | null>(null);
@@ -152,15 +164,6 @@ export function StockLedgerPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Page header */}
-      <div className="flex items-center gap-2">
-        <HistoryIcon className="size-5 text-muted-foreground" />
-        <div>
-          <h1 className="text-lg font-semibold leading-none">Stock Ledger</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Track every movement for any seed batch.</p>
-        </div>
-      </div>
-
       {/* Filters */}
       <StockLedgerFilters
         filters={filters}

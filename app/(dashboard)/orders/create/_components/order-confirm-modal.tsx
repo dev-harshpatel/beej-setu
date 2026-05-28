@@ -99,7 +99,7 @@ export function OrderConfirmModal({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent
-        className="w-[calc(100vw-2rem)] max-w-4xl h-[90vh] flex flex-col overflow-hidden p-0"
+        className="w-[calc(100vw-2rem)] max-w-3xl sm:max-w-3xl h-[90vh] flex flex-col overflow-hidden p-0"
         showCloseButton={!loading && !success}
       >
         {success ? (
@@ -197,7 +197,7 @@ export function OrderConfirmModal({
               )}
             </div>
 
-            <DialogFooter className="shrink-0 px-6">
+            <DialogFooter className="shrink-0 mx-0 mb-0 px-6 py-4 border-t border-border">
               <Button variant="outline" size="sm" onClick={handleClose} disabled={loading}>
                 Edit
               </Button>

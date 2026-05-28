@@ -570,14 +570,16 @@ export function CreateOrderForm() {
         </section>
 
         {/* Proceed button */}
-        <Button
-          className="w-full bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent)]/80 font-semibold"
-          size="default"
-          disabled={!canProceed}
-          onClick={() => setConfirmOpen(true)}
-        >
-          Proceed to Confirm →
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            className="bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent)]/80 font-semibold"
+            size="default"
+            disabled={!canProceed}
+            onClick={() => setConfirmOpen(true)}
+          >
+            Proceed to Confirm →
+          </Button>
+        </div>
 
         {!canProceed && (
           <p className="text-center text-xs text-muted-foreground -mt-2">

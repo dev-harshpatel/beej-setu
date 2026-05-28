@@ -34,7 +34,7 @@ export function StockTable({ rows, loading, canManage, onEdit, onDelete }: Stock
 
   if (loading) {
     return (
-      <div className="overflow-auto rounded-lg border border-border max-h-[420px] sm:max-h-[520px] lg:max-h-[620px]">
+      <div className="h-full overflow-auto rounded-lg border border-border">
         <table className="w-full caption-bottom text-sm">
           {header}
           <TableBody>
@@ -52,7 +52,7 @@ export function StockTable({ rows, loading, canManage, onEdit, onDelete }: Stock
   }
 
   return (
-    <div className="overflow-auto rounded-lg border border-border max-h-[420px] sm:max-h-[520px] lg:max-h-[620px]">
+    <div className="h-full overflow-auto rounded-lg border border-border">
       <table className="w-full caption-bottom text-sm">
         {header}
         <TableBody>

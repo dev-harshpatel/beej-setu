@@ -275,6 +275,7 @@ export function CreateChallanDialog({
                     id="godown-date"
                     type="date"
                     value={godownDate}
+                    min={order?.created_at?.split("T")[0]}
                     onChange={(e) => setGodownDate(e.target.value)}
                     className="h-8 text-sm"
                   />

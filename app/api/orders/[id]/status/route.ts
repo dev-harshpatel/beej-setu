@@ -34,11 +34,12 @@ export const PATCH = withAuth(
       try {
         order = await ordersQueries.approveWithStockDeduction(db, id, status);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to approve order";
-        return apiError(
-          msg.includes("Insufficient stock") ? msg : "Failed to deduct stock — check inventory levels",
-          422,
-        );
+        // PostgrestError from Supabase v2 is NOT instanceof Error — read .message directly.
+        const msg =
+          (err as { message?: string })?.message ??
+          (err instanceof Error ? err.message : "Failed to approve order");
+        const isStockError = msg.includes("Insufficient stock") || msg.includes("must be PENDING");
+        return apiError(isStockError ? msg : `Failed to deduct stock — check inventory levels`, 422);
       }
     } else {
       order = await ordersQueries.updateStatus(db, id, status);

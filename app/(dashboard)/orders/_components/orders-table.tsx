@@ -31,6 +31,7 @@ import type { OrderWithRelations } from "@/types/order.types";
 interface OrdersTableProps {
   orders: OrderWithRelations[];
   loading: boolean;
+  isDispatchStaff?: boolean;
   onEdit: (order: OrderWithRelations) => void;
   onApprove: (order: OrderWithRelations) => void;
   onHold: (order: OrderWithRelations) => void;
@@ -41,6 +42,7 @@ interface OrdersTableProps {
 export function OrdersTable({
   orders,
   loading,
+  isDispatchStaff = false,
   onEdit,
   onApprove,
   onHold,
@@ -117,6 +119,11 @@ export function OrdersTable({
             const isPending = status === ORDER_STATUSES.PENDING;
             const challanEligible = CHALLAN_ELIGIBLE_STATUSES.includes(status);
             const transportUpdateEligible = TRANSPORT_UPDATE_ELIGIBLE_STATUSES.includes(status);
+            const dispatchChallanVisible =
+              challanEligible ||
+              transportUpdateEligible ||
+              status === ORDER_STATUSES.TRANSPORT_DISPATCHED ||
+              status === ORDER_STATUSES.SHIPPED;
 
             return (
               <TableRow key={order.id}>
@@ -179,8 +186,8 @@ export function OrdersTable({
                       </>
                     )}
 
-                    {/* Approved / Partially Approved: Challan button */}
-                    {challanEligible && (
+                    {/* Dispatch staff: single Challan button for all dispatch-visible statuses */}
+                    {isDispatchStaff && dispatchChallanVisible && (
                       <Button
                         size="sm"
                         className="h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
@@ -191,8 +198,20 @@ export function OrdersTable({
                       </Button>
                     )}
 
-                    {/* Godown dispatched: Transport Dispatch button */}
-                    {transportUpdateEligible && (
+                    {/* Admin: Challan button for approved/partially-approved */}
+                    {!isDispatchStaff && challanEligible && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
+                        onClick={() => onCreateChallan(order)}
+                      >
+                        <ClipboardListIcon className="size-3.5" />
+                        Challan
+                      </Button>
+                    )}
+
+                    {/* Admin: Transport Dispatch button for godown-dispatched orders */}
+                    {!isDispatchStaff && transportUpdateEligible && (
                       <Button
                         size="sm"
                         className="h-7 text-xs bg-purple-600 text-white hover:bg-purple-700 border-0"
@@ -203,16 +222,18 @@ export function OrdersTable({
                       </Button>
                     )}
 
-                    {/* Edit always visible */}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => onEdit(order)}
-                    >
-                      <PencilIcon className="size-3.5" />
-                      Edit
-                    </Button>
+                    {/* Edit — hidden for dispatch staff */}
+                    {!isDispatchStaff && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => onEdit(order)}
+                      >
+                        <PencilIcon className="size-3.5" />
+                        Edit
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
