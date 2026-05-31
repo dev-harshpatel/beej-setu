@@ -33,6 +33,7 @@ export interface Database {
           is_active: boolean;
           profile_image: string | null;
           territory: string | null;
+          encrypted_password: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -45,6 +46,7 @@ export interface Database {
           is_active?: boolean;
           profile_image?: string | null;
           territory?: string | null;
+          encrypted_password?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -157,6 +159,7 @@ export interface Database {
           delivery_date: string | null;
           status: OrderStatus;
           notes: string | null;
+          partial_reason: "deliberate" | "backorder" | null;
           created_at: string;
           updated_at: string;
         };
@@ -171,6 +174,7 @@ export interface Database {
           delivery_date?: string | null;
           status?: OrderStatus;
           notes?: string | null;
+          partial_reason?: "deliberate" | "backorder" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -288,7 +292,10 @@ export interface Database {
           seed_id: string;
           unit: "Bag" | "Packet" | "Box";
           quantity: number;
+          requested_quantity: number | null;
           notes: string | null;
+          batch_number: string | null;
+          batch_change_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -298,12 +305,55 @@ export interface Database {
           seed_id: string;
           unit?: "Bag" | "Packet" | "Box";
           quantity: number;
+          requested_quantity?: number | null;
           notes?: string | null;
+          batch_number?: string | null;
+          batch_change_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Insert"]>;
         Relationships: [];
+      };
+
+      collections: {
+        Row: {
+          id: string;
+          dealer_id: string;
+          staff_id: string;
+          payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
+          amount: number;
+          collection_date: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          dealer_id: string;
+          staff_id: string;
+          payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
+          amount: number;
+          collection_date: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["collections"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "collections_dealer_id_fkey";
+            columns: ["dealer_id"];
+            referencedRelation: "dealers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "collections_staff_id_fkey";
+            columns: ["staff_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: Record<string, { Row: Record<string, unknown>; Relationships: [] }>;
@@ -313,7 +363,9 @@ export interface Database {
 }
 
 // Convenience row types
-export type ProfileRow        = Database["public"]["Tables"]["profiles"]["Row"];
+// encrypted_password is a real DB column but must never be sent to the client.
+// All profile queries explicitly exclude it; this type reflects what reaches the client.
+export type ProfileRow = Omit<Database["public"]["Tables"]["profiles"]["Row"], "encrypted_password">;
 export type DealerRow         = Database["public"]["Tables"]["dealers"]["Row"];
 export type CropRow           = Database["public"]["Tables"]["crops"]["Row"];
 export type SeedProductRow    = Database["public"]["Tables"]["seed_products"]["Row"];
@@ -323,3 +375,5 @@ export type SeedStockRow      = Database["public"]["Tables"]["seed_stock"]["Row"
 export type ChallanRow        = Database["public"]["Tables"]["challans"]["Row"];
 export type StockMovementRow  = Database["public"]["Tables"]["stock_movements"]["Row"];
 export type StockMovementType = StockMovementRow["movement_type"];
+export type CollectionRow     = Database["public"]["Tables"]["collections"]["Row"];
+export type PaymentMode       = CollectionRow["payment_mode"];

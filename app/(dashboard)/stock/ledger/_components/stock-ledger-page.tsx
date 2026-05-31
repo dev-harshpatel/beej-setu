@@ -25,20 +25,18 @@ export function StockLedgerPage() {
   const { hasPermission } = usePermissions();
   const searchParams = useSearchParams();
 
+  const [filters, setFilters]             = useState<LedgerFilters>(EMPTY_FILTERS);
+  const [selectedBatch, setSelectedBatch] = useState<BatchWithStatus | null>(null);
+  const [movementPage, setMovementPage]   = useState(1);
+  const [dateFrom, setDateFrom]           = useState("");
+  const [dateTo, setDateTo]               = useState("");
+
   useEffect(() => {
     if (!hasPermission(PERMISSIONS.STOCK_MANAGE)) {
       router.replace("/stock");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (!hasPermission(PERMISSIONS.STOCK_MANAGE)) return null;
-
-  const [filters, setFilters]       = useState<LedgerFilters>(EMPTY_FILTERS);
-  const [selectedBatch, setSelectedBatch] = useState<BatchWithStatus | null>(null);
-  const [movementPage, setMovementPage]   = useState(1);
-  const [dateFrom, setDateFrom]           = useState("");
-  const [dateTo, setDateTo]               = useState("");
 
   // Pre-select from URL query params (coming from stock table "View Ledger" button)
   useEffect(() => {
@@ -130,6 +128,8 @@ export function StockLedgerPage() {
     },
     enabled: !!selectedBatch,
   });
+
+  if (!hasPermission(PERMISSIONS.STOCK_MANAGE)) return null;
 
   // ── Handlers ──────────────────────────────────────────────
   function handleFiltersChange(next: LedgerFilters) {

@@ -30,7 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { DealerRow } from "@/types/database.types";
 import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
-import { DatePicker } from "@/components/ui/date-picker";
 import { OrderConfirmModal, type ConfirmOrderItem } from "./order-confirm-modal";
 
 type CropRowState = {
@@ -73,8 +72,6 @@ export function CreateOrderForm() {
 
   // Section 2
   const [transportName, setTransportName] = useState("");
-  const [deliveryCenter, setDeliveryCenter] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
 
   // Section 3
@@ -112,8 +109,8 @@ export function CreateOrderForm() {
     setDealerSearch("");
     if (!center && dealer.territory) setCenter(dealer.territory);
     if (!transportName && dealer.default_transport) setTransportName(dealer.default_transport);
-    if (!deliveryCenter && (dealer.delivery_instruction ?? dealer.default_delivery_instruction)) {
-      setDeliveryCenter((dealer.delivery_instruction ?? dealer.default_delivery_instruction) ?? "");
+    if (!notes && (dealer.delivery_instruction ?? dealer.default_delivery_instruction)) {
+      setNotes((dealer.delivery_instruction ?? dealer.default_delivery_instruction) ?? "");
     }
   }
 
@@ -182,7 +179,7 @@ export function CreateOrderForm() {
 
   // Progress
   const step1Done = !!dealerId;
-  const step2Done = !!(transportName || deliveryCenter);
+  const step2Done = !!transportName;
   const step3Done = cropRows.some((r) => !!r.seedId);
 
   const canProceed =
@@ -249,17 +246,6 @@ export function CreateOrderForm() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Center */}
-            <div className="flex flex-col gap-1.5 lg:col-span-2">
-              <Label htmlFor="center">Center</Label>
-              <Input
-                id="center"
-                placeholder="e.g. Ahmedabad Central"
-                value={center}
-                onChange={(e) => setCenter(e.target.value)}
-              />
-            </div>
-
             {/* Dealer searchable dropdown */}
             <div className="flex flex-col gap-1.5 lg:col-span-2">
               <Label>Dealer <span className="text-destructive">*</span></Label>
@@ -333,6 +319,17 @@ export function CreateOrderForm() {
                 </PopoverContent>
               </Popover>
             </div>
+
+            {/* Center */}
+            <div className="flex flex-col gap-1.5 lg:col-span-2">
+              <Label htmlFor="center">Center</Label>
+              <Input
+                id="center"
+                placeholder="e.g. Ahmedabad Central"
+                value={center}
+                onChange={(e) => setCenter(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Auto-fill dealer info card */}
@@ -386,7 +383,7 @@ export function CreateOrderForm() {
             <h2 className="text-sm font-semibold text-foreground">Delivery Details</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="transportName">Transport Name</Label>
               <Input
@@ -396,31 +393,12 @@ export function CreateOrderForm() {
                 onChange={(e) => setTransportName(e.target.value)}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deliveryCenter">Delivery Center</Label>
-              <Input
-                id="deliveryCenter"
-                placeholder="e.g. Surat Godown"
-                value={deliveryCenter}
-                onChange={(e) => setDeliveryCenter(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Expected Delivery Date</Label>
-              <DatePicker
-                value={deliveryDate}
-                onChange={setDeliveryDate}
-                placeholder="Pick a date"
-                minDate={new Date().toISOString().slice(0, 10)}
-                className="w-full h-8"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-4">
-              <Label htmlFor="notes">Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor="notes">Delivery Instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <textarea
                 id="notes"
                 rows={2}
-                placeholder="Any special instructions…"
+                placeholder="Any delivery instructions…"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 transition-colors"
@@ -596,10 +574,8 @@ export function CreateOrderForm() {
         dealer={selectedDealer}
         center={center}
         transportName={transportName}
-        deliveryCenter={deliveryCenter}
         items={confirmItems}
         notes={notes}
-        deliveryDate={deliveryDate}
       />
     </>
   );

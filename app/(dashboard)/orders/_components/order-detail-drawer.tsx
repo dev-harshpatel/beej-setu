@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -38,6 +37,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { OrderStatusBadge } from "./order-status-badge";
+import { PartialApprovalReasonModal, type PartialReason } from "./partial-approval-reason-modal";
 import {
   ORDER_STATUSES,
   ORDER_STATUS_LABELS,
@@ -199,8 +199,9 @@ interface OrderDetailDrawerProps {
   initialMode?: "view" | "edit";
   readOnly?: boolean;
   onClose: () => void;
-  onStatusChange: (id: string, status: OrderStatusValue) => Promise<void>;
+  onStatusChange: (id: string, status: OrderStatusValue, partialReason?: PartialReason) => Promise<void>;
   onUpdate: (id: string, fields: Partial<EditFields>, itemEdits?: Record<string, ItemEdit>) => Promise<void>;
+  onApprove?: (order: OrderWithRelations) => void;
   onCreateChallan: (order: OrderWithRelations) => void;
   onRefresh: () => void;
 }
@@ -213,12 +214,14 @@ export function OrderDetailDrawer({
   onClose,
   onStatusChange,
   onUpdate,
+  onApprove,
   onCreateChallan,
   onRefresh,
 }: OrderDetailDrawerProps) {
   const [mode, setMode] = useState<"view" | "edit">(initialMode);
   const { hasPermission } = usePermissions();
-  const canViewLedger = hasPermission(PERMISSIONS.STOCK_MANAGE);
+  const canViewLedger    = hasPermission(PERMISSIONS.STOCK_MANAGE);
+  const canEdit          = hasPermission(PERMISSIONS.ORDERS_EDIT);
 
   const [editFields, setEditFields] = useState<EditFields>({ notes: "", delivery_date: "" });
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
@@ -226,6 +229,29 @@ export function OrderDetailDrawer({
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Partial approval reason modal
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+
+  // Fulfill remaining
+  const [fulfilling, setFulfilling] = useState(false);
+
+  // Quick action buttons (Approve / Hold / Cancel) in view mode
+  const [actionPending, setActionPending] = useState(false);
+
+  async function handleQuickAction(status: OrderStatusValue) {
+    if (!order || actionPending) return;
+    setActionPending(true);
+    setSaveError(null);
+    try {
+      await onStatusChange(order.id, status);
+      onRefresh();
+    } catch (err: unknown) {
+      setSaveError((err as Error)?.message ?? "Action failed.");
+    } finally {
+      setActionPending(false);
+    }
+  }
 
   function handleOpenEdit() {
     if (!order) return;
@@ -274,9 +300,13 @@ export function OrderDetailDrawer({
     }
   }
 
-  // Saves edits then transitions to APPROVED or PARTIALLY_APPROVED based on quantity changes
+  // Saves edits then opens the batch-selection confirm modal (or approves directly if no modal).
   async function handleSaveAndApprove() {
     if (!order) return;
+    if (hasReducedQuantities()) {
+      setReasonModalOpen(true);
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -285,16 +315,55 @@ export function OrderDetailDrawer({
         { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
         itemEdits,
       );
-      const newStatus = hasReducedQuantities()
-        ? ORDER_STATUSES.PARTIALLY_APPROVED
-        : ORDER_STATUSES.APPROVED;
-      await onStatusChange(order.id, newStatus);
+      setMode("view");
+      if (onApprove) {
+        onApprove(order);
+      } else {
+        await onStatusChange(order.id, ORDER_STATUSES.APPROVED);
+        onRefresh();
+      }
+    } catch {
+      setSaveError("Failed to save changes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Called after admin picks a reason in the partial-approval modal.
+  async function handleApproveWithReason(reason: PartialReason) {
+    if (!order) return;
+    setReasonModalOpen(false);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onUpdate(
+        order.id,
+        { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
+        itemEdits,
+      );
+      await onStatusChange(order.id, ORDER_STATUSES.PARTIALLY_APPROVED, reason);
       setMode("view");
       onRefresh();
     } catch {
-      setSaveError("Failed to approve order. Please try again.");
+      setSaveError("Failed to partially approve order. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFulfillRemaining() {
+    if (!order) return;
+    setFulfilling(true);
+    setSaveError(null);
+    try {
+      const res  = await fetch(`/api/orders/${order.id}/fulfill-remaining`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message ?? "Failed to fulfill remaining");
+      onRefresh();
+    } catch (err: unknown) {
+      setSaveError((err as Error)?.message ?? "Failed to fulfill remaining quantities.");
+    } finally {
+      setFulfilling(false);
     }
   }
 
@@ -326,7 +395,17 @@ export function OrderDetailDrawer({
   const totalItems = order.items?.length ?? 0;
   const canCreateChallan = CHALLAN_ELIGIBLE_STATUSES.includes(order.status as OrderStatusValue);
 
+  const backorderItems = (order.items ?? []).filter(
+    (i) => (i.requested_quantity ?? i.quantity) > i.quantity
+  );
+  const showBackorderPanel =
+    order.status === ORDER_STATUSES.PARTIALLY_APPROVED &&
+    order.partial_reason === "backorder" &&
+    mode === "view" &&
+    backorderItems.length > 0;
+
   return (
+    <>
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <SheetContent
         side="right"
@@ -406,6 +485,9 @@ export function OrderDetailDrawer({
                     <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Seed</th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground w-32">Unit</th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
+                    {mode === "view" && STOCK_IMPACT_STATUSES.includes(order.status as OrderStatusValue) && (
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Batch</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -473,6 +555,11 @@ export function OrderDetailDrawer({
                           item.quantity
                         )}
                       </td>
+                      {mode === "view" && STOCK_IMPACT_STATUSES.includes(order.status as OrderStatusValue) && (
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                          {item.batch_number ?? "—"}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -483,6 +570,66 @@ export function OrderDetailDrawer({
           {/* Stock availability preview — shown for pending orders in view mode */}
           {order.status === ORDER_STATUSES.PENDING && mode === "view" && !readOnly && (
             <StockSummaryPanel order={order} />
+          )}
+
+          {/* Pending Fulfillment panel — shown for backorder partial approvals */}
+          {showBackorderPanel && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30">
+              <div className="flex items-center gap-2 border-b border-orange-200 dark:border-orange-900 px-3 py-2">
+                <ClockIcon className="size-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
+                <span className="text-xs font-semibold text-orange-800 dark:text-orange-300">
+                  Pending Backorder
+                </span>
+              </div>
+              <div className="flex flex-col divide-y divide-orange-100 dark:divide-orange-900/60">
+                {backorderItems.map((item) => {
+                  const requested = item.requested_quantity ?? item.quantity;
+                  const remaining = requested - item.quantity;
+                  return (
+                    <div key={item.id} className="grid grid-cols-4 items-center gap-2 px-3 py-2.5 text-xs">
+                      <div className="col-span-1 min-w-0">
+                        <p className="font-medium truncate">{item.seed?.crops?.name ?? "—"}</p>
+                        {item.seed?.variety && (
+                          <p className="text-muted-foreground truncate">{item.seed.variety}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground leading-tight">Requested</p>
+                        <p className="font-semibold tabular-nums">{requested} {item.unit}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground leading-tight">Supplied</p>
+                        <p className="font-semibold tabular-nums">{item.quantity} {item.unit}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground leading-tight">Remaining</p>
+                        <p className="font-semibold tabular-nums text-orange-600 dark:text-orange-400">
+                          {remaining} {item.unit}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {canEdit && !readOnly && (
+                <div className="border-t border-orange-200 dark:border-orange-900 px-3 py-2.5 flex flex-col gap-1.5">
+                  {saveError && fulfilling && (
+                    <p className="text-xs text-destructive">{saveError}</p>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      className="bg-success text-success-foreground hover:bg-success/90"
+                      disabled={fulfilling}
+                      onClick={handleFulfillRemaining}
+                    >
+                      <CheckCircleIcon className="size-3.5" />
+                      {fulfilling ? "Fulfilling…" : "Fulfill Remaining"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Editable fields */}
@@ -502,16 +649,6 @@ export function OrderDetailDrawer({
                 />
               </Field>
 
-              <Field>
-                <FieldLabel>Delivery Date</FieldLabel>
-                <DatePicker
-                  value={editFields.delivery_date}
-                  onChange={(v) => setEditFields((f) => ({ ...f, delivery_date: v }))}
-                  placeholder="Pick delivery date"
-                  className="w-full"
-                />
-              </Field>
-
               {saveError && <p className="text-sm text-destructive">{saveError}</p>}
 
               <div className="flex flex-wrap gap-2 justify-end">
@@ -521,7 +658,7 @@ export function OrderDetailDrawer({
                 <Button variant="outline" size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? "Saving…" : "Save Only"}
                 </Button>
-                {order.status === ORDER_STATUSES.PENDING && (
+                {(order.status === ORDER_STATUSES.PENDING || order.status === ORDER_STATUSES.HOLD) && (
                   <Button
                     size="sm"
                     onClick={handleSaveAndApprove}
@@ -561,7 +698,7 @@ export function OrderDetailDrawer({
           <Separator />
 
           {/* Quick actions */}
-          {!readOnly && order.status === ORDER_STATUSES.PENDING && mode === "view" && (
+          {!readOnly && (order.status === ORDER_STATUSES.PENDING || order.status === ORDER_STATUSES.HOLD) && mode === "view" && (
             <>
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-semibold">Actions</h3>
@@ -569,7 +706,11 @@ export function OrderDetailDrawer({
                   <Button
                     size="sm"
                     className="bg-success text-success-foreground hover:bg-success/90"
-                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.APPROVED).then(onRefresh)}
+                    disabled={actionPending}
+                    onClick={() => {
+                      if (onApprove) onApprove(order);
+                      else handleQuickAction(ORDER_STATUSES.APPROVED);
+                    }}
                   >
                     <CheckCircleIcon className="size-3.5" />
                     Approve
@@ -577,7 +718,8 @@ export function OrderDetailDrawer({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.HOLD).then(onRefresh)}
+                    disabled={actionPending}
+                    onClick={() => handleQuickAction(ORDER_STATUSES.HOLD)}
                   >
                     <PauseCircleIcon className="size-3.5" />
                     Hold
@@ -586,12 +728,16 @@ export function OrderDetailDrawer({
                     size="sm"
                     variant="outline"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => onStatusChange(order.id, ORDER_STATUSES.CANCELLED).then(onRefresh)}
+                    disabled={actionPending}
+                    onClick={() => handleQuickAction(ORDER_STATUSES.CANCELLED)}
                   >
                     <XCircleIcon className="size-3.5" />
                     Cancel Order
                   </Button>
                 </div>
+                {saveError && actionPending === false && (
+                  <p className="text-sm text-destructive">{saveError}</p>
+                )}
               </div>
               <Separator />
             </>
@@ -684,5 +830,26 @@ export function OrderDetailDrawer({
         </div>
       </SheetContent>
     </Sheet>
+
+    <PartialApprovalReasonModal
+      open={reasonModalOpen}
+      saving={saving}
+      items={(order.items ?? [])
+        .filter((item) => {
+          const edited = itemEdits[item.id];
+          return edited !== undefined && edited.quantity < item.quantity;
+        })
+        .map((item) => ({
+          itemId:      item.id,
+          seedName:    item.seed?.crops?.name ?? "—",
+          variety:     item.seed?.variety ?? "",
+          unit:        itemEdits[item.id]?.unit ?? item.unit ?? "Bag",
+          requestedQty: item.requested_quantity ?? item.quantity,
+          approvedQty:  itemEdits[item.id]?.quantity ?? item.quantity,
+        }))}
+      onConfirm={handleApproveWithReason}
+      onCancel={() => setReasonModalOpen(false)}
+    />
+    </>
   );
 }

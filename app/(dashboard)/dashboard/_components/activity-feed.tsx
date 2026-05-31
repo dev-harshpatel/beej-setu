@@ -6,7 +6,7 @@ export interface ActivityItem {
   action: string;
   target: string;
   time: string;
-  type: "order" | "approval" | "user" | "return" | "dealer";
+  type: "order" | "approval" | "user" | "return" | "dealer" | "stock";
 }
 
 interface ActivityFeedProps {
@@ -15,11 +15,12 @@ interface ActivityFeedProps {
 }
 
 const TYPE_DOT: Record<ActivityItem["type"], string> = {
-  order: "bg-foreground",
+  order:    "bg-foreground",
   approval: "bg-warning",
-  user: "bg-accent-foreground",
-  return: "bg-destructive",
-  dealer: "bg-muted-foreground",
+  stock:    "bg-success",
+  user:     "bg-accent-foreground",
+  return:   "bg-destructive",
+  dealer:   "bg-muted-foreground",
 };
 
 export function ActivityFeed({ items, onItemClick }: ActivityFeedProps) {

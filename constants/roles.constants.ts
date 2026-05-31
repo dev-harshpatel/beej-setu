@@ -48,6 +48,12 @@ export const PERMISSIONS = {
 
   // Challans — exclusive to dispatch staff (and admins)
   CHALLAN_MANAGE: "challan:manage",
+
+  // Collections
+  COLLECTIONS_VIEW:   "collections:view",
+  COLLECTIONS_CREATE: "collections:create",
+  COLLECTIONS_EDIT:   "collections:edit",
+  COLLECTIONS_DELETE: "collections:delete",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -64,6 +70,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.ORDERS_EDIT,
     PERMISSIONS.DEALERS_VIEW,
     PERMISSIONS.SEEDS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.COLLECTIONS_VIEW,
+    PERMISSIONS.COLLECTIONS_CREATE,
+    PERMISSIONS.COLLECTIONS_EDIT,
+    PERMISSIONS.COLLECTIONS_DELETE,
   ],
   [ROLES.DISPATCH_STAFF]: [
     PERMISSIONS.ORDERS_VIEW,

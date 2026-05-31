@@ -114,7 +114,7 @@ export function ReportsFilters({ filters, territories, staffList, onChange }: Re
               <SelectItem value="all">All Staff</SelectItem>
               {staffList.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.name}
+                  {s.name ?? s.id}
                   {s.territory ? ` — ${s.territory}` : ""}
                 </SelectItem>
               ))}

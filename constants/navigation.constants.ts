@@ -10,6 +10,8 @@ import {
   Building2,
   Package,
   History,
+  CalendarDays,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 import { ROUTES } from "./routes.constants";
@@ -71,10 +73,18 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BarChart2,
     permission: PERMISSIONS.REPORTS_VIEW,
     children: [
-      { label: "Overview", href: ROUTES.REPORTS.ROOT, icon: BarChart2 },
+      { label: "Overview", href: ROUTES.REPORTS.ROOT, icon: BarChart2, permission: PERMISSIONS.STOCK_VIEW },
+      { label: "Date-wise Orders", href: ROUTES.REPORTS.ORDERS, icon: CalendarDays },
       { label: "Dealer Report", href: ROUTES.REPORTS.DEALER, icon: Building2 },
       { label: "Product Report", href: ROUTES.REPORTS.PRODUCT, icon: Package },
+      { label: "Collections", href: ROUTES.REPORTS.COLLECTIONS, icon: Banknote },
     ],
+  },
+  {
+    label: "Collections",
+    href: ROUTES.COLLECTIONS.ROOT,
+    icon: Banknote,
+    permission: PERMISSIONS.COLLECTIONS_VIEW,
   },
   {
     label: "Settings",

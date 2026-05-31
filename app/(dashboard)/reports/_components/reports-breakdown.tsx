@@ -48,16 +48,13 @@ function SkeletonRows({ cols, rows = 5 }: { cols: number; rows?: number }) {
 interface TerritoryBreakdownTableProps {
   data: TerritoryBreakdown[];
   loading: boolean;
-  /** When a territory filter is already active, this table is collapsed */
   activeTerritory?: string;
-  onTerritoryClick?: (territory: string) => void;
 }
 
 export function TerritoryBreakdownTable({
   data,
   loading,
   activeTerritory,
-  onTerritoryClick,
 }: TerritoryBreakdownTableProps) {
   const isEmpty = !loading && data.length === 0;
 
@@ -97,8 +94,6 @@ export function TerritoryBreakdownTable({
               data.map((row) => (
                 <TableRow
                   key={row.territory}
-                  className={onTerritoryClick && !activeTerritory ? "cursor-pointer hover:bg-accent/40" : ""}
-                  onClick={() => !activeTerritory && onTerritoryClick?.(row.territory)}
                 >
                   <TableCell className="font-medium text-sm">{row.territory}</TableCell>
                   <TableCell className="text-right font-bold tabular-nums text-sm">
@@ -123,11 +118,6 @@ export function TerritoryBreakdownTable({
         </Table>
       </div>
 
-      {!loading && !isEmpty && !activeTerritory && onTerritoryClick && (
-        <p className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-          Click a row to filter by territory.
-        </p>
-      )}
     </div>
   );
 }
@@ -138,14 +128,12 @@ interface StaffBreakdownTableProps {
   data: StaffBreakdown[];
   loading: boolean;
   activeStaffId?: string;
-  onStaffClick?: (staffId: string) => void;
 }
 
 export function StaffBreakdownTable({
   data,
   loading,
   activeStaffId,
-  onStaffClick,
 }: StaffBreakdownTableProps) {
   const isEmpty = !loading && data.length === 0;
 
@@ -185,8 +173,6 @@ export function StaffBreakdownTable({
               data.map((row) => (
                 <TableRow
                   key={row.staffId}
-                  className={onStaffClick && !activeStaffId ? "cursor-pointer hover:bg-accent/40" : ""}
-                  onClick={() => !activeStaffId && onStaffClick?.(row.staffId)}
                 >
                   <TableCell className="font-medium text-sm">{row.staffName}</TableCell>
                   <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
@@ -211,11 +197,6 @@ export function StaffBreakdownTable({
         </Table>
       </div>
 
-      {!loading && !isEmpty && !activeStaffId && onStaffClick && (
-        <p className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-          Click a row to filter by staff member.
-        </p>
-      )}
     </div>
   );
 }

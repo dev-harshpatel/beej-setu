@@ -129,6 +129,20 @@ export const ordersQueries = {
     );
   },
 
+  async getNextSerial(db: SupabaseClient<Database>, fyCode: string): Promise<number> {
+    const { data } = await db
+      .from("orders")
+      .select("order_number")
+      .like("order_number", `FS-${fyCode}-%`)
+      .order("order_number", { ascending: false })
+      .limit(1);
+
+    if (!data || data.length === 0) return 1;
+    const parts = data[0].order_number.split("-");
+    const serial = parseInt(parts[2] ?? "0", 10);
+    return isNaN(serial) ? 1 : serial + 1;
+  },
+
   // Legacy alias kept so any other callers don't break during migration.
   async confirmWithStockDeduction(db: SupabaseClient<Database>, id: string) {
     return this.approveWithStockDeduction(db, id, "APPROVED");

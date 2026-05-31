@@ -21,6 +21,7 @@ import {
   ORDER_STATUSES,
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
+import type { PartialReason } from "./partial-approval-reason-modal";
 import { ROLES } from "@/constants/roles.constants";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuthStore } from "@/store/auth.store";
@@ -60,14 +61,13 @@ const DISPATCH_VISIBLE_STATUSES: OrderStatusValue[] = [
   ORDER_STATUSES.SHIPPED,
 ];
 
-type DispatchTabValue = "all" | "ready" | "godown" | "transport" | "delivered";
+type DispatchTabValue = "all" | "ready" | "godown" | "transport";
 
 const DISPATCH_TAB_STATUS: Record<DispatchTabValue, OrderStatusValue | undefined> = {
   all:       undefined,          // "all" for dispatch = DISPATCH_VISIBLE_STATUSES (handled below)
   ready:     ORDER_STATUSES.APPROVED,
   godown:    ORDER_STATUSES.GODOWN_DISPATCHED,
   transport: ORDER_STATUSES.TRANSPORT_DISPATCHED,
-  delivered: ORDER_STATUSES.SHIPPED,
 };
 
 const DISPATCH_TABS: { value: DispatchTabValue; label: string }[] = [
@@ -75,7 +75,6 @@ const DISPATCH_TABS: { value: DispatchTabValue; label: string }[] = [
   { value: "ready",     label: "Pending" },
   { value: "godown",    label: "Godown Dispatch" },
   { value: "transport", label: "Transport Dispatch" },
-  { value: "delivered", label: "Confirmed Order" },
 ];
 
 type TabValue = AdminTabValue | DispatchTabValue;
@@ -102,8 +101,9 @@ export function OrdersTabs() {
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null);
   const [drawerMode, setDrawerMode]       = useState<"view" | "edit">("view");
   const [drawerOpen, setDrawerOpen]       = useState(false);
-  const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmOrder, setConfirmOrder]   = useState<OrderWithRelations | null>(null);
+  const [confirmOpen, setConfirmOpen]     = useState(false);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -165,11 +165,13 @@ export function OrdersTabs() {
     setSelectedOrder(order); setDrawerMode("edit"); setDrawerOpen(true);
   }
 
-  async function handleStatusChange(id: string, status: OrderStatusValue) {
+  async function handleStatusChange(id: string, status: OrderStatusValue, partialReason?: PartialReason) {
+    const body: Record<string, unknown> = { status };
+    if (partialReason) body.partial_reason = partialReason;
     const res  = await fetch(`/api/orders/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.message ?? "Status update failed");
@@ -178,14 +180,21 @@ export function OrdersTabs() {
     invalidateOrders();
   }
 
-  async function handleApprove(order: OrderWithRelations) {
-    await handleStatusChange(order.id, ORDER_STATUSES.APPROVED);
+  function handleApprove(order: OrderWithRelations) {
+    setConfirmOrder(order);
+    setConfirmOpen(true);
   }
   async function handleHold(order: OrderWithRelations) {
-    await handleStatusChange(order.id, ORDER_STATUSES.HOLD);
+    if (processingOrderId) return;
+    setProcessingOrderId(order.id);
+    try { await handleStatusChange(order.id, ORDER_STATUSES.HOLD); }
+    finally { setProcessingOrderId(null); }
   }
   async function handleCancel(order: OrderWithRelations) {
-    await handleStatusChange(order.id, ORDER_STATUSES.CANCELLED);
+    if (processingOrderId) return;
+    setProcessingOrderId(order.id);
+    try { await handleStatusChange(order.id, ORDER_STATUSES.CANCELLED); }
+    finally { setProcessingOrderId(null); }
   }
 
   function handleCreateChallan(order: OrderWithRelations) {
@@ -346,6 +355,7 @@ export function OrdersTabs() {
         orders={orders}
         loading={loading}
         isDispatchStaff={isDispatchStaff}
+        processingOrderId={processingOrderId}
         onEdit={handleEdit}
         onApprove={handleApprove}
         onHold={handleHold}
@@ -378,6 +388,11 @@ export function OrdersTabs() {
         onClose={() => setDrawerOpen(false)}
         onStatusChange={handleStatusChange}
         onUpdate={handleUpdate}
+        onApprove={(order) => {
+          setDrawerOpen(false);
+          setConfirmOrder(order);
+          setConfirmOpen(true);
+        }}
         onCreateChallan={(order) => {
           setDrawerOpen(false);
           handleCreateChallan(order);

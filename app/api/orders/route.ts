@@ -4,7 +4,7 @@ import { ordersQueries } from "@/lib/database/orders.queries";
 import { dealersQueries } from "@/lib/database/dealers.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS } from "@/constants/roles.constants";
-import { generateOrderNumber } from "@/lib/utils";
+import { generateOrderNumber, getFinancialYear } from "@/lib/utils";
 import { ORDER_ELIGIBLE_STATUSES } from "@/constants/dealer-status.constants";
 
 export const GET = withAuth(
@@ -32,41 +32,51 @@ export const GET = withAuth(
 
 export const POST = withAuth(
   async (req: NextRequest, _ctx, { profile }) => {
-    const body = await req.json().catch(() => null);
-    if (!body?.dealerId || !Array.isArray(body?.items) || body.items.length === 0) {
-      return apiError("dealerId and at least one item are required", 400);
+    try {
+      const body = await req.json().catch(() => null);
+      if (!body?.dealerId || !Array.isArray(body?.items) || body.items.length === 0) {
+        return apiError("dealerId and at least one item are required", 400);
+      }
+
+      const db = getSupabaseAdminClient();
+
+      const dealer = await dealersQueries.getById(db, body.dealerId);
+      if (!dealer) return apiError("Dealer not found", 404);
+      if (!ORDER_ELIGIBLE_STATUSES.includes(dealer.status as typeof ORDER_ELIGIBLE_STATUSES[number])) {
+        return apiError(`Orders can only be placed for active dealers (current status: ${dealer.status})`, 422);
+      }
+
+      const fy = getFinancialYear();
+      const serial = await ordersQueries.getNextSerial(db, fy);
+
+      const order = await ordersQueries.create(
+        db,
+        {
+          order_number:    generateOrderNumber(serial),
+          dealer_id:       body.dealerId,
+          staff_id:        profile.id,
+          center:          body.center          ?? null,
+          transport_name:  body.transportName   ?? null,
+          delivery_center: body.deliveryCenter  ?? null,
+          delivery_date:   body.deliveryDate    ?? null,
+          notes:           body.notes           ?? null,
+        },
+        body.items.map((item: { seedId: string; unit: string; quantity: number; notes?: string }) => ({
+          order_id:           "",
+          seed_id:            item.seedId,
+          unit:               item.unit ?? "Bag",
+          quantity:           item.quantity,
+          requested_quantity: item.quantity,
+          notes:              item.notes ?? null,
+        }))
+      );
+
+      return apiSuccess(order, "Order created", 201);
+    } catch (err) {
+      console.error("POST /api/orders error:", err);
+      const message = err instanceof Error ? err.message : "Failed to create order";
+      return apiError(message, 500);
     }
-
-    const db = getSupabaseAdminClient();
-
-    const dealer = await dealersQueries.getById(db, body.dealerId);
-    if (!dealer) return apiError("Dealer not found", 404);
-    if (!ORDER_ELIGIBLE_STATUSES.includes(dealer.status as typeof ORDER_ELIGIBLE_STATUSES[number])) {
-      return apiError(`Orders can only be placed for active dealers (current status: ${dealer.status})`, 422);
-    }
-
-    const order = await ordersQueries.create(
-      db,
-      {
-        order_number:    generateOrderNumber(),
-        dealer_id:       body.dealerId,
-        staff_id:        profile.id,
-        center:          body.center          ?? null,
-        transport_name:  body.transportName   ?? null,
-        delivery_center: body.deliveryCenter  ?? null,
-        delivery_date:   body.deliveryDate    ?? null,
-        notes:           body.notes           ?? null,
-      },
-      body.items.map((item: { seedId: string; unit: string; quantity: number; notes?: string }) => ({
-        order_id: "",
-        seed_id:  item.seedId,
-        unit:     item.unit ?? "Bag",
-        quantity: item.quantity,
-        notes:    item.notes ?? null,
-      }))
-    );
-
-    return apiSuccess(order, "Order created", 201);
   },
   PERMISSIONS.ORDERS_CREATE
 );

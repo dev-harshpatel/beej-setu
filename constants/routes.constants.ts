@@ -48,8 +48,14 @@ export const ROUTES = {
 
   REPORTS: {
     ROOT: "/reports",
+    ORDERS: "/reports/orders",
     DEALER: "/reports/dealer",
     PRODUCT: "/reports/product",
+    COLLECTIONS: "/reports/collections",
+  },
+
+  COLLECTIONS: {
+    ROOT: "/collections",
   },
 
   SETTINGS: {

@@ -11,6 +11,7 @@ import { OrderConfirmModal } from "@/app/(dashboard)/orders/_components/order-co
 import { OrderDetailDrawer } from "@/app/(dashboard)/orders/_components/order-detail-drawer";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderRow } from "@/types/database.types";
+import type { ActivityEvent } from "@/app/api/dashboard/activity/route";
 
 type OrderStatus = OrderRow["status"];
 
@@ -23,18 +24,24 @@ interface DashboardStats {
   salesReturns: number;
 }
 
-const PLACEHOLDER_ACTIVITY: ActivityItem[] = [
-  { id: "1", actor: "System", action: "dashboard loaded", target: "", time: "just now", type: "order" },
-];
-
 const EMPTY_STATS: DashboardStats = {
   totalOrders: 0, pendingApprovals: 0, totalDealers: 0,
   totalStaff: 0, totalAdmins: 0, salesReturns: 0,
 };
 
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins  = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days  = Math.floor(diff / 86_400_000);
+  if (mins  < 1)   return "just now";
+  if (mins  < 60)  return `${mins}m ago`;
+  if (hours < 24)  return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
 export function DashboardClient() {
   const setPendingOrdersCount = useDashboardStore((s) => s.setPendingOrdersCount);
-
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: QUERY_KEYS.DASHBOARD_STATS,
@@ -45,25 +52,38 @@ export function DashboardClient() {
     },
   });
 
-  // Keep the Zustand store in sync so the nav badge stays accurate
+  const { data: activityEvents = [] } = useQuery({
+    queryKey: ["dashboard-activity"],
+    queryFn: async () => {
+      const res  = await fetch("/api/dashboard/activity");
+      const json = await res.json();
+      return (json.data ?? []) as ActivityEvent[];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const activityItems: ActivityItem[] = activityEvents.map((e) => ({
+    id:     e.id,
+    type:   e.type,
+    actor:  e.actor,
+    action: e.action,
+    target: e.target,
+    time:   relativeTime(e.created_at),
+  }));
+
   const [pendingOrders, setPendingOrders] = useState<OrderWithRelations[]>([]);
   const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
   const [, startTransition] = useTransition();
 
-  // Confirm modal
   const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen]   = useState(false);
+  const [drawerOrder, setDrawerOrder]   = useState<OrderWithRelations | null>(null);
+  const [drawerOpen, setDrawerOpen]     = useState(false);
 
-  // Edit drawer
-  const [drawerOrder, setDrawerOrder] = useState<OrderWithRelations | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Fetch stats
   useEffect(() => {
     if (stats) setPendingOrdersCount(stats.pendingApprovals);
   }, [stats, setPendingOrdersCount, ordersRefreshKey]);
 
-  // Fetch pending orders
   const fetchPendingOrders = useCallback(() => {
     startTransition(async () => {
       try {
@@ -84,10 +104,6 @@ export function DashboardClient() {
   function handleEdit(order: OrderWithRelations) {
     setDrawerOrder(order);
     setDrawerOpen(true);
-  }
-
-  function handleRowClick(order: OrderWithRelations) {
-    handleEdit(order);
   }
 
   function handleConfirmEdit(order: OrderWithRelations) {
@@ -113,8 +129,8 @@ export function DashboardClient() {
     itemEdits?: Record<string, { quantity: number; unit: string }>
   ) {
     const body: Record<string, unknown> = {};
-    if (fields.notes !== undefined) body.notes = fields.notes;
-    if (fields.delivery_date) body.deliveryDate = fields.delivery_date;
+    if (fields.notes !== undefined)  body.notes        = fields.notes;
+    if (fields.delivery_date)        body.deliveryDate = fields.delivery_date;
     if (itemEdits && Object.keys(itemEdits).length > 0) {
       body.items = Object.entries(itemEdits).map(([itemId, { quantity, unit }]) => ({
         id: itemId, quantity, unit,
@@ -132,13 +148,13 @@ export function DashboardClient() {
   const displayStats = stats ?? EMPTY_STATS;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 flex-1 min-h-0">
       <StatsRow stats={displayStats} loading={statsLoading} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Pending Orders — 3/5 width on desktop */}
-        <div className="lg:col-span-3 rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 flex-1 min-h-0 items-stretch">
+        {/* Pending Orders — 3/5 */}
+        <div className="lg:col-span-3 rounded-xl border border-border bg-card flex flex-col min-h-0">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5 shrink-0">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Pending Orders</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -151,29 +167,30 @@ export function DashboardClient() {
               </span>
             )}
           </div>
-          <PendingOrdersTable
-            orders={pendingOrders}
-            onApprove={handleApprove}
-            onEdit={handleEdit}
-            onRowClick={handleRowClick}
-          />
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <PendingOrdersTable
+              orders={pendingOrders}
+              onApprove={handleApprove}
+              onEdit={handleEdit}
+              onRowClick={handleEdit}
+            />
+          </div>
         </div>
 
-        {/* Activity Feed — 2/5 width on desktop */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-4 py-3 sm:px-5">
+        {/* Activity Feed — 2/5 */}
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col min-h-0">
+          <div className="border-b border-border px-4 py-3 sm:px-5 shrink-0">
             <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Latest actions across the platform
             </p>
           </div>
-          <div className="px-4 py-4 sm:px-5">
-            <ActivityFeed items={PLACEHOLDER_ACTIVITY} />
+          <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-5">
+            <ActivityFeed items={activityItems} />
           </div>
         </div>
       </div>
 
-      {/* Confirm modal */}
       <OrderConfirmModal
         order={confirmOrder}
         open={confirmOpen}
@@ -185,7 +202,6 @@ export function DashboardClient() {
         }}
       />
 
-      {/* Edit drawer */}
       <OrderDetailDrawer
         order={drawerOrder}
         open={drawerOpen}

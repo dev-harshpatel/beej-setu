@@ -23,6 +23,7 @@ const TYPE_CONFIG: Record<
 > = {
   order:    { label: "Order",    dotClass: "bg-foreground",       bgClass: "bg-foreground/8" },
   approval: { label: "Approval", dotClass: "bg-warning",          bgClass: "bg-warning/10" },
+  stock:    { label: "Stock",    dotClass: "bg-success",           bgClass: "bg-success/10" },
   user:     { label: "User",     dotClass: "bg-accent-foreground", bgClass: "bg-accent/15" },
   return:   { label: "Return",   dotClass: "bg-destructive",       bgClass: "bg-destructive/10" },
   dealer:   { label: "Dealer",   dotClass: "bg-muted-foreground",  bgClass: "bg-muted" },

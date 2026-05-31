@@ -23,33 +23,41 @@ const initialState: AuthStoreState = {
   _hasHydrated: false,
 };
 
+// Captured inside the state factory so onRehydrateStorage can call it
+// even when the rehydrated state is undefined (empty localStorage on first login).
+let _markHydrated: (() => void) | undefined;
+
 export const useAuthStore = create<AuthStoreState & AuthActions>()(
   persist(
-    (set) => ({
-      ...initialState,
+    (set) => {
+      _markHydrated = () => set({ _hasHydrated: true });
 
-      setAuth: (user, tokens) => {
-        if (typeof window !== "undefined") {
-          localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken);
-          localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
-        }
-        set({ user, tokens, isAuthenticated: true, isLoading: false });
-      },
+      return {
+        ...initialState,
 
-      setUser: (user) => set({ user }),
+        setAuth: (user, tokens) => {
+          if (typeof window !== "undefined") {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken);
+            localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
+          }
+          set({ user, tokens, isAuthenticated: true, isLoading: false });
+        },
 
-      setLoading: (isLoading) => set({ isLoading }),
+        setUser: (user) => set({ user }),
 
-      clearAuth: () => {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN);
-          localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
-        }
-        set(initialState);
-      },
+        setLoading: (isLoading) => set({ isLoading }),
 
-      setHasHydrated: (value) => set({ _hasHydrated: value }),
-    }),
+        clearAuth: () => {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN);
+            localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
+          }
+          set(initialState);
+        },
+
+        setHasHydrated: (value) => set({ _hasHydrated: value }),
+      };
+    },
     {
       name: LOCAL_STORAGE_KEYS.USER,
       partialize: (state) => ({
@@ -58,7 +66,17 @@ export const useAuthStore = create<AuthStoreState & AuthActions>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        // state is the value restored from localStorage.
+        // On first login localStorage is empty, so state is undefined —
+        // state?.setHasHydrated(true) would be a silent no-op and the
+        // sidebar skeleton would stay visible forever.
+        // _markHydrated is always available since it's set synchronously
+        // during store creation, before this callback ever fires.
+        if (state) {
+          state.setHasHydrated(true);
+        } else {
+          _markHydrated?.();
+        }
       },
     }
   )

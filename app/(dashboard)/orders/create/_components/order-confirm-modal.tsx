@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth.store";
 import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ROUTES } from "@/constants/routes.constants";
 import type { DealerRow } from "@/types/database.types";
+import { buildOrderWhatsAppMessage } from "@/lib/whatsapp";
+import { WhatsAppSharePanel } from "@/app/(dashboard)/orders/_components/whatsapp-share-panel";
 
 export type ConfirmOrderItem = {
   id: string;
@@ -30,10 +33,8 @@ type Props = {
   dealer: DealerRow | null;
   center: string;
   transportName: string;
-  deliveryCenter: string;
   items: ConfirmOrderItem[];
   notes: string;
-  deliveryDate: string;
 };
 
 export function OrderConfirmModal({
@@ -42,15 +43,14 @@ export function OrderConfirmModal({
   dealer,
   center,
   transportName,
-  deliveryCenter,
   items,
   notes,
-  deliveryDate,
 }: Props) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
+  const currentUser = useAuthStore((s) => s.user);
+  const [loading, setLoading]         = useState(false);
+  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
+  const [error, setError]             = useState("");
 
   async function handleConfirm() {
     if (!dealer) return;
@@ -61,12 +61,10 @@ export function OrderConfirmModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dealerId:       dealer.id,
-          center:         center         || null,
-          transportName:  transportName  || null,
-          deliveryCenter: deliveryCenter || null,
-          deliveryDate:   deliveryDate   || null,
-          notes:          notes          || null,
+          dealerId:      dealer.id,
+          center:        center        || null,
+          transportName: transportName || null,
+          notes:         notes         || null,
           items: items.map((i) => ({
             seedId:   i.seedId,
             unit:     i.unit,
@@ -74,15 +72,13 @@ export function OrderConfirmModal({
           })),
         }),
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.message ?? "Failed to create order");
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setError(json?.message ?? "Failed to create order. Please try again.");
         return;
       }
-      setSuccess(true);
-      setTimeout(() => {
-        router.push(ROUTES.ORDERS.ROOT);
-      }, 1500);
+      const message = buildOrderWhatsAppMessage({ dealer: dealer!, staffName: currentUser?.name, center, transportName, notes, items });
+      setWhatsappMessage(message);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -91,27 +87,33 @@ export function OrderConfirmModal({
   }
 
   function handleClose() {
-    if (loading || success) return;
+    if (loading || whatsappMessage) return;
     setError("");
     onClose();
+  }
+
+  function handleDone() {
+    router.push(ROUTES.ORDERS.ROOT);
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent
         className="w-[calc(100vw-2rem)] max-w-3xl sm:max-w-3xl h-[90vh] flex flex-col overflow-hidden p-0"
-        showCloseButton={!loading && !success}
+        showCloseButton={!loading && !whatsappMessage}
       >
-        {success ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
-            <div className="flex size-14 items-center justify-center rounded-full bg-[var(--accent)]">
-              <CheckCircle2Icon className="size-7 text-[var(--accent-foreground)]" />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-foreground">Order placed!</p>
-              <p className="mt-1 text-sm text-muted-foreground">Redirecting to orders…</p>
-            </div>
-          </div>
+        {whatsappMessage ? (
+          <>
+            <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="flex size-6 items-center justify-center rounded-full bg-[var(--accent)]">
+                  <CheckCircle2Icon className="size-3.5 text-[var(--accent-foreground)]" />
+                </div>
+                <DialogTitle className="text-base">Order Placed!</DialogTitle>
+              </div>
+            </DialogHeader>
+            <WhatsAppSharePanel message={whatsappMessage} expand onDone={handleDone} />
+          </>
         ) : (
           <>
             <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-border">
@@ -139,22 +141,6 @@ export function OrderConfirmModal({
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Transport</p>
                     <p className="font-medium">{transportName}</p>
-                  </div>
-                )}
-                {deliveryCenter && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Delivery Center</p>
-                    <p className="font-medium">{deliveryCenter}</p>
-                  </div>
-                )}
-                {deliveryDate && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Delivery Date</p>
-                    <p className="font-medium">
-                      {new Date(deliveryDate).toLocaleDateString("en-IN", {
-                        day: "2-digit", month: "short", year: "numeric",
-                      })}
-                    </p>
                   </div>
                 )}
               </div>
@@ -198,7 +184,7 @@ export function OrderConfirmModal({
             </div>
 
             <DialogFooter className="shrink-0 mx-0 mb-0 px-6 py-4 border-t border-border">
-              <Button variant="outline" size="sm" onClick={handleClose} disabled={loading}>
+              <Button variant="outline" size="sm" onClick={handleClose} disabled={loading || !!whatsappMessage}>
                 Edit
               </Button>
               <Button

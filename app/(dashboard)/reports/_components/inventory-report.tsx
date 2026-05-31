@@ -57,39 +57,49 @@ export function InventoryReport({ rows, loading }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="border-b border-border px-5 py-4">
+    <div className="rounded-xl border border-border bg-card flex flex-col">
+      <div className="border-b border-border px-4 py-3 shrink-0">
         <h3 className="text-sm font-semibold">Inventory Status</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           {loading ? "Loading…" : `${rows.length} seed variants · sorted by highest stock`}
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-              <th className="px-4 py-2.5 text-left font-medium">
+      <div className="overflow-auto max-h-72">
+        <table className="w-full text-xs table-fixed">
+          <colgroup>
+            <col className="w-[20%]" />
+            <col className="w-[20%]" />
+            <col className="w-[11%] hidden sm:table-column" />
+            <col className="w-[9%] hidden md:table-column" />
+            <col className="w-[9%]" />
+            <col className="w-[10%] hidden sm:table-column" />
+            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+          </colgroup>
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted text-muted-foreground">
+              <th className="px-3 py-2 text-left font-medium truncate">
                 <SortBtn col="cropName" label="Crop" />
               </th>
-              <th className="px-4 py-2.5 text-left font-medium">Variety</th>
-              <th className="px-4 py-2.5 text-left font-medium hidden sm:table-cell">Pack Size</th>
-              <th className="px-4 py-2.5 text-right font-medium hidden md:table-cell">Pkts/Bag</th>
-              <th className="px-4 py-2.5 text-right font-medium">
+              <th className="px-3 py-2 text-left font-medium truncate">Variety</th>
+              <th className="px-3 py-2 text-left font-medium truncate hidden sm:table-cell">Pack Size</th>
+              <th className="px-3 py-2 text-right font-medium truncate hidden md:table-cell">Pkts/Bag</th>
+              <th className="px-3 py-2 text-right font-medium truncate">
                 <SortBtn col="totalBags" label="Bags" />
               </th>
-              <th className="px-4 py-2.5 text-right font-medium hidden sm:table-cell">Loose Pkts</th>
-              <th className="px-4 py-2.5 text-right font-medium">
+              <th className="px-3 py-2 text-right font-medium truncate hidden sm:table-cell">Loose Pkts</th>
+              <th className="px-3 py-2 text-right font-medium truncate">
                 <SortBtn col="totalPacketsEquiv" label="Total (pkts)" />
               </th>
-              <th className="px-4 py-2.5 text-center font-medium">Status</th>
+              <th className="px-3 py-2 text-center font-medium truncate">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading
-              ? Array.from({ length: 8 }).map((_, i) => (
+              ? Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-border last:border-0">
-                  {Array.from({ length: 7 }).map((_, j) => (
-                    <td key={j} className="px-4 py-2.5"><Skeleton className="h-4 w-full" /></td>
+                  {Array.from({ length: 8 }).map((_, j) => (
+                    <td key={j} className="px-3 py-1.5"><Skeleton className="h-3 w-full" /></td>
                   ))}
                 </tr>
               ))
@@ -97,15 +107,15 @@ export function InventoryReport({ rows, loading }: Props) {
                 const { label, cls } = stockStatus(row.totalPacketsEquiv);
                 return (
                   <tr key={row.seedId} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-2.5 font-medium">{row.cropName}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{row.variety}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">{row.packSize}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums hidden md:table-cell">{row.packetsPerBag}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-medium">{row.totalBags}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums hidden sm:table-cell">{row.totalLoosePackets}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold">{row.totalPacketsEquiv.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={cn("inline-block rounded-full border px-2 py-0.5 text-xs font-medium", cls)}>
+                    <td className="px-3 py-1.5 font-medium truncate">{row.cropName}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground truncate">{row.variety}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground truncate hidden sm:table-cell">{row.packSize}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums hidden md:table-cell">{row.packetsPerBag}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums font-medium">{row.totalBags}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums hidden sm:table-cell">{row.totalLoosePackets}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums font-semibold">{row.totalPacketsEquiv.toLocaleString("en-IN")}</td>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className={cn("inline-block rounded-full border px-1.5 py-px text-xs font-medium", cls)}>
                         {label}
                       </span>
                     </td>

@@ -37,10 +37,11 @@ export const ORDER_STATUS_BADGE_CLASSES: Record<OrderStatusValue, string> = {
   SHIPPED:              "bg-accent text-accent-foreground border-0",
 };
 
-// The statuses an admin can manually assign to an order
-// PARTIALLY_APPROVED is excluded — it is set automatically when approved qty < ordered qty
+// The statuses an admin can manually assign to an order via the generic dropdown.
+// APPROVED and PARTIALLY_APPROVED are intentionally excluded — they trigger stock deduction
+// and must go through the dedicated Approve button (which calls approve_order() DB function).
+// Setting APPROVED via this dropdown on an ineligible order would throw a DB error.
 export const ADMIN_SETTABLE_STATUSES: OrderStatusValue[] = [
-  ORDER_STATUSES.APPROVED,
   ORDER_STATUSES.HOLD,
   ORDER_STATUSES.CANCELLED,
   ORDER_STATUSES.SHIPPED,

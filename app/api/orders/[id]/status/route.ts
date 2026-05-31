@@ -41,6 +41,26 @@ export const PATCH = withAuth(
         const isStockError = msg.includes("Insufficient stock") || msg.includes("must be PENDING");
         return apiError(isStockError ? msg : `Failed to deduct stock — check inventory levels`, 422);
       }
+
+      // For partial approvals, persist the reason (deliberate vs backorder).
+      if (status === ORDER_STATUSES.PARTIALLY_APPROVED && body.partial_reason) {
+        const reason = body.partial_reason as "deliberate" | "backorder";
+        await db.from("orders").update({ partial_reason: reason }).eq("id", id);
+      }
+
+      // Save per-item batch assignments selected by admin.
+      const itemBatches = body.itemBatches as { itemId: string; batchNumber: string }[] | undefined;
+      if (Array.isArray(itemBatches) && itemBatches.length > 0) {
+        await Promise.all(
+          itemBatches.map(({ itemId, batchNumber }) =>
+            db.from("order_items")
+              .update({ batch_number: batchNumber })
+              .eq("id", itemId)
+              .throwOnError()
+          )
+        );
+      }
+      order = await ordersQueries.getById(db, id);
     } else {
       order = await ordersQueries.updateStatus(db, id, status);
     }

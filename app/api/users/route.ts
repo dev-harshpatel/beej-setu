@@ -4,6 +4,7 @@ import { usersQueries } from "@/lib/database/users.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { createUserSchema } from "@/lib/validators/users.validators";
+import { encryptPassword } from "@/lib/crypto/password-encryption";
 
 export const GET = withAuth(
   async (req: NextRequest, _ctx, auth) => {
@@ -92,6 +93,7 @@ export const POST = withAuth(
         name,
         username: username.toLowerCase(),
         role,
+        encrypted_password: encryptPassword(password),
         ...(territory ? { territory } : {}),
       })
       .select()

@@ -3,17 +3,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { ROLES } from "@/constants/roles.constants";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Table,
   TableBody,
@@ -66,10 +62,14 @@ interface ActiveFilters {
   seedId: string;
   dateFrom: string;
   dateTo: string;
+  staffId?: string;
 }
 
 // ── Product Report Page ───────────────────────────────────────────────────────
 export default function ProductReportPage() {
+  const { user }   = useAuth();
+  const isStaff    = user?.role === ROLES.STAFF;
+
   const [seedId, setSeedId]   = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
@@ -93,6 +93,7 @@ export default function ProductReportPage() {
       if (activeFilters.seedId)   params.set("seedId",   activeFilters.seedId);
       if (activeFilters.dateFrom) params.set("dateFrom", activeFilters.dateFrom);
       if (activeFilters.dateTo)   params.set("dateTo",   activeFilters.dateTo);
+      if (activeFilters.staffId)  params.set("staffId",  activeFilters.staffId);
       const res  = await fetch(`/api/reports/product?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error("Failed to fetch report");
@@ -107,7 +108,12 @@ export default function ProductReportPage() {
   const selectedProduct = products.find((p) => p.id === activeFilters?.seedId);
 
   function handleGenerate() {
-    setActiveFilters({ seedId, dateFrom, dateTo });
+    setActiveFilters({
+      seedId,
+      dateFrom,
+      dateTo,
+      staffId: isStaff && user ? user.id : undefined,
+    });
   }
 
   function handleClear() {
@@ -144,38 +150,40 @@ export default function ProductReportPage() {
         <div className="flex flex-wrap gap-3 items-end rounded-lg border border-border p-4 bg-card">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">Product (optional)</label>
-            <Select value={seedId} onValueChange={(v) => setSeedId(v ?? "")}>
-              <SelectTrigger className="w-60">
-                <SelectValue placeholder="All products" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All products</SelectItem>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.crop.name} — {p.variety} ({p.pack_size})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              className="w-72"
+              value={seedId}
+              onValueChange={(v) => setSeedId(v === "__all__" ? "" : v)}
+              placeholder="All products"
+              searchPlaceholder="Search crop, variety…"
+              wrap
+              items={[
+                { value: "__all__", label: "All products" },
+                ...products.map((p) => ({
+                  value: p.id,
+                  label: `${p.crop.name} — ${p.variety} (${p.pack_size})`,
+                })),
+              ]}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">From</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DatePicker
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={setDateFrom}
+              placeholder="From date"
+              className="w-40"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">To</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DatePicker
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={setDateTo}
+              placeholder="To date"
+              className="w-40"
             />
           </div>
 
@@ -189,6 +197,11 @@ export default function ProductReportPage() {
               </Button>
             )}
           </div>
+          {isStaff && (
+            <p className="w-full text-xs text-muted-foreground">
+              Showing only your orders for the selected product.
+            </p>
+          )}
         </div>
 
         {/* ── Summary chips ─────────────────────────────────────────── */}

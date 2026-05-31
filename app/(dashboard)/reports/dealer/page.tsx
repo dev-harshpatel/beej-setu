@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { EyeIcon, XIcon } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { ROLES } from "@/constants/roles.constants";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -146,9 +148,13 @@ interface ActiveFilters {
   dealerId: string;
   dateFrom: string;
   dateTo: string;
+  staffId?: string;
 }
 
 export default function DealerReportPage() {
+  const { user }   = useAuth();
+  const isStaff    = user?.role === ROLES.STAFF;
+
   const [dealerId, setDealerId]       = useState("");
   const [dateFrom, setDateFrom]       = useState("");
   const [dateTo, setDateTo]           = useState("");
@@ -172,6 +178,7 @@ export default function DealerReportPage() {
       const params = new URLSearchParams({ dealerId: activeFilters.dealerId, pageSize: "500" });
       if (activeFilters.dateFrom) params.set("dateFrom", activeFilters.dateFrom);
       if (activeFilters.dateTo)   params.set("dateTo",   activeFilters.dateTo);
+      if (activeFilters.staffId)  params.set("staffId",  activeFilters.staffId);
       const res  = await fetch(`/api/orders?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error("Failed to fetch orders");
@@ -187,7 +194,12 @@ export default function DealerReportPage() {
 
   function handleGenerate() {
     if (!dealerId) return;
-    setActiveFilters({ dealerId, dateFrom, dateTo });
+    setActiveFilters({
+      dealerId,
+      dateFrom,
+      dateTo,
+      staffId: isStaff && user ? user.id : undefined,
+    });
   }
 
   function handleClear() {
@@ -219,7 +231,11 @@ export default function DealerReportPage() {
             <label className="text-xs font-medium text-muted-foreground">Dealer *</label>
             <Select value={dealerId} onValueChange={(v) => setDealerId(v ?? "")}>
               <SelectTrigger className="w-52">
-                <SelectValue placeholder="Select dealer…" />
+                <span className="truncate text-sm">
+                  {dealerId
+                    ? (dealers.find((d) => d.id === dealerId)?.name ?? "Select dealer…")
+                    : "Select dealer…"}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {dealers.map((d) => (
@@ -263,6 +279,11 @@ export default function DealerReportPage() {
               </Button>
             )}
           </div>
+          {isStaff && (
+            <p className="w-full text-xs text-muted-foreground">
+              Showing only your orders for the selected dealer.
+            </p>
+          )}
         </div>
 
         {/* ── Dealer info card ──────────────────────────────────────── */}

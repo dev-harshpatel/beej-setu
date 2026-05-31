@@ -33,6 +33,7 @@ export const PATCH = withAuth(
     if (!body.transport_dispatch_date) {
       return apiError("transport_dispatch_date is required", 400);
     }
+    const itemBatches = body.itemBatches as { itemId: string; batchNumber: string; changeReason: string }[] | undefined;
 
     const db = getSupabaseAdminClient();
 
@@ -47,15 +48,31 @@ export const PATCH = withAuth(
       return apiError("Challan not found for this order", 404);
     }
 
-    // Update transport dispatch date
+    // Update transport dispatch date (also persist lr_number and transport_name if provided)
     const { data: updated, error: updateErr } = await db
       .from("challans")
-      .update({ transport_dispatch_date: body.transport_dispatch_date })
+      .update({
+        transport_dispatch_date: body.transport_dispatch_date,
+        ...(body.lr_number !== undefined ? { lr_number: body.lr_number || null } : {}),
+        ...(body.transport_name !== undefined ? { transport_name: body.transport_name || null } : {}),
+      })
       .eq("id", challan.id)
       .select()
       .single();
 
     if (updateErr) return apiError("Failed to update challan", 500);
+
+    // Save any dispatch-side batch overrides (with change reasons)
+    if (Array.isArray(itemBatches) && itemBatches.length > 0) {
+      await Promise.all(
+        itemBatches.map(({ itemId, batchNumber, changeReason }) =>
+          db.from("order_items")
+            .update({ batch_number: batchNumber, batch_change_reason: changeReason || null })
+            .eq("id", itemId)
+            .throwOnError()
+        )
+      );
+    }
 
     // Advance order to TRANSPORT_DISPATCHED
     await db

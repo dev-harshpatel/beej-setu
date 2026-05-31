@@ -32,6 +32,7 @@ interface OrdersTableProps {
   orders: OrderWithRelations[];
   loading: boolean;
   isDispatchStaff?: boolean;
+  processingOrderId?: string | null;
   onEdit: (order: OrderWithRelations) => void;
   onApprove: (order: OrderWithRelations) => void;
   onHold: (order: OrderWithRelations) => void;
@@ -43,6 +44,7 @@ export function OrdersTable({
   orders,
   loading,
   isDispatchStaff = false,
+  processingOrderId,
   onEdit,
   onApprove,
   onHold,
@@ -57,8 +59,14 @@ export function OrdersTable({
             <TableRow>
               <TableHead>Order ID</TableHead>
               <TableHead>Dealer</TableHead>
-              <TableHead className="hidden md:table-cell">Staff</TableHead>
-              <TableHead className="hidden lg:table-cell">Center</TableHead>
+              {isDispatchStaff ? (
+                <TableHead className="hidden md:table-cell">Location</TableHead>
+              ) : (
+                <>
+                  <TableHead className="hidden md:table-cell">Staff</TableHead>
+                  <TableHead className="hidden lg:table-cell">Center</TableHead>
+                </>
+              )}
               <TableHead className="hidden sm:table-cell">Date</TableHead>
               <TableHead className="hidden sm:table-cell">Items</TableHead>
               <TableHead>Status</TableHead>
@@ -70,8 +78,14 @@ export function OrdersTable({
               <TableRow key={i}>
                 <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                {isDispatchStaff ? (
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                ) : (
+                  <>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                  </>
+                )}
                 <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
                 <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-8" /></TableCell>
                 <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
@@ -105,8 +119,14 @@ export function OrdersTable({
           <TableRow>
             <TableHead>Order ID</TableHead>
             <TableHead>Dealer</TableHead>
-            <TableHead className="hidden md:table-cell">Staff</TableHead>
-            <TableHead className="hidden lg:table-cell">Center</TableHead>
+            {isDispatchStaff ? (
+              <TableHead className="hidden md:table-cell">Location</TableHead>
+            ) : (
+              <>
+                <TableHead className="hidden md:table-cell">Staff</TableHead>
+                <TableHead className="hidden lg:table-cell">Center</TableHead>
+              </>
+            )}
             <TableHead className="hidden sm:table-cell">Date</TableHead>
             <TableHead className="hidden sm:table-cell">Items</TableHead>
             <TableHead>Status</TableHead>
@@ -117,6 +137,7 @@ export function OrdersTable({
           {orders.map((order) => {
             const status = order.status as OrderStatusValue;
             const isPending = status === ORDER_STATUSES.PENDING;
+            const isProcessing = processingOrderId === order.id;
             const challanEligible = CHALLAN_ELIGIBLE_STATUSES.includes(status);
             const transportUpdateEligible = TRANSPORT_UPDATE_ELIGIBLE_STATUSES.includes(status);
             const dispatchChallanVisible =
@@ -133,12 +154,20 @@ export function OrdersTable({
                 <TableCell className="font-medium">
                   {order.dealer?.name ?? "—"}
                 </TableCell>
-                <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                  {order.staff?.name ?? "—"}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                  {order.dealer?.territory ?? "—"}
-                </TableCell>
+                {isDispatchStaff ? (
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                    {order.center ?? "—"}
+                  </TableCell>
+                ) : (
+                  <>
+                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                      {order.staff?.name ?? "—"}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                      {order.dealer?.territory ?? "—"}
+                    </TableCell>
+                  </>
+                )}
                 <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
                   {new Date(order.created_at).toLocaleDateString("en-IN", {
                     day: "2-digit",
@@ -160,15 +189,17 @@ export function OrdersTable({
                         <Button
                           size="sm"
                           className="h-7 text-xs bg-success text-success-foreground hover:bg-success/90 border-0"
+                          disabled={isProcessing}
                           onClick={() => onApprove(order)}
                         >
                           <CheckCircleIcon className="size-3.5" />
-                          Approve
+                          {isProcessing ? "…" : "Approve"}
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs"
+                          disabled={isProcessing}
                           onClick={() => onHold(order)}
                         >
                           <PauseCircleIcon className="size-3.5" />
@@ -178,6 +209,7 @@ export function OrdersTable({
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs text-destructive hover:text-destructive"
+                          disabled={isProcessing}
                           onClick={() => onCancel(order)}
                         >
                           <XCircleIcon className="size-3.5" />

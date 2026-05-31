@@ -2,6 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, ProfileRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
 
+// Never include encrypted_password — it must only be accessed via the dedicated server-side endpoint.
+const PROFILE_COLUMNS = "id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at";
+
 export const usersQueries = {
   async getById(
     db: SupabaseClient<Database>,
@@ -9,11 +12,11 @@ export const usersQueries = {
   ): Promise<ProfileRow | null> {
     const { data, error } = await db
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLUMNS)
       .eq("id", id)
       .single();
     if (error) throw error;
-    return data;
+    return data as ProfileRow;
   },
 
   async getAll(
@@ -25,7 +28,7 @@ export const usersQueries = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = db.from("profiles").select("*", { count: "exact" });
+    let query = db.from("profiles").select(PROFILE_COLUMNS, { count: "exact" });
 
     if (params?.search) {
       query = query.ilike("name", `%${params.search}%`);
@@ -54,9 +57,9 @@ export const usersQueries = {
       .from("profiles")
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", id)
-      .select()
+      .select(PROFILE_COLUMNS)
       .single();
     if (error) throw error;
-    return data;
+    return data as ProfileRow;
   },
 };

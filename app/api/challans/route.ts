@@ -10,7 +10,7 @@ export const POST = withAuth(
   async (req: NextRequest, _ctx, auth) => {
     const body = await req.json().catch(() => ({}));
 
-    const { order_id, challan_number, transport_name, lr_number, godown_dispatch_date } = body;
+    const { order_id, challan_number, transport_name, lr_number, godown_dispatch_date, itemBatches } = body;
 
     if (!order_id || !challan_number) {
       return apiError("order_id and challan_number are required", 400);
@@ -62,6 +62,19 @@ export const POST = withAuth(
       .from("orders")
       .update({ status: ORDER_STATUSES.GODOWN_DISPATCHED })
       .eq("id", order_id);
+
+    // Save any dispatch-side batch overrides (with change reasons)
+    const overrides = itemBatches as { itemId: string; batchNumber: string; changeReason: string }[] | undefined;
+    if (Array.isArray(overrides) && overrides.length > 0) {
+      await Promise.all(
+        overrides.map(({ itemId, batchNumber, changeReason }) =>
+          db.from("order_items")
+            .update({ batch_number: batchNumber, batch_change_reason: changeReason || null })
+            .eq("id", itemId)
+            .throwOnError()
+        )
+      );
+    }
 
     return apiSuccess(challan, "Challan created — order marked Godown Dispatched", 201);
   },

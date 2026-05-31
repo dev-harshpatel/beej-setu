@@ -20,6 +20,8 @@ interface ComboboxProps {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  /** Allow item labels to wrap instead of truncating */
+  wrap?: boolean;
 }
 
 export function Combobox({
@@ -31,6 +33,7 @@ export function Combobox({
   emptyText = "No results found",
   disabled = false,
   className,
+  wrap = false,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -73,7 +76,7 @@ export function Combobox({
           />
         }
       >
-        <span className="truncate">{selected ? selected.label : placeholder}</span>
+        <span className={wrap ? "whitespace-normal" : "truncate"}>{selected ? selected.label : placeholder}</span>
         <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground ml-1" />
       </PopoverTrigger>
 
@@ -113,7 +116,7 @@ export function Combobox({
                 <CheckIcon
                   className={cn("size-3.5 shrink-0", item.value !== value && "invisible")}
                 />
-                <span className="truncate">{item.label}</span>
+                <span className={wrap ? "whitespace-normal" : "truncate"}>{item.label}</span>
               </button>
             ))
           )}

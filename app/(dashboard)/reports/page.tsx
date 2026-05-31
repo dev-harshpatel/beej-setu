@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { PERMISSIONS } from "@/constants/roles.constants";
+import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
+import { ROUTES } from "@/constants/routes.constants";
 import { ReportsPage } from "./_components/reports-page";
 
 export const metadata: Metadata = { title: "Reports" };
 
 export default async function ReportsPageRoute() {
-  await requirePermission(PERMISSIONS.REPORTS_VIEW);
+  const profile = await requirePermission(PERMISSIONS.REPORTS_VIEW);
+  if (profile.role === ROLES.STAFF) redirect(ROUTES.REPORTS.ORDERS);
 
   return (
     <>

@@ -31,13 +31,16 @@ export function formatDateTime(dateString: string): string {
   }).format(new Date(dateString));
 }
 
-export function generateOrderNumber(): string {
-  const prefix = "BS";
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 1000)
-    .toString()
-    .padStart(3, "0");
-  return `${prefix}-${timestamp}-${random}`;
+export function getFinancialYear(): string {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-based
+  const year = now.getFullYear();
+  const fyStart = month >= 4 ? year : year - 1;
+  return `${String(fyStart).slice(-2)}${String(fyStart + 1).slice(-2)}`;
+}
+
+export function generateOrderNumber(serial: number): string {
+  return `FS-${getFinancialYear()}-${String(serial).padStart(3, "0")}`;
 }
 
 export function truncate(text: string, length: number): string {

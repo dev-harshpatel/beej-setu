@@ -124,15 +124,6 @@ export function ReportsPage() {
   const loading  = reportFetching && !reportData;
   const overviewLoading = overviewFetching && !overviewData;
 
-  // ── Cross-filter handlers: clicking a row in the breakdown tables ─────────
-  function handleTerritoryClick(territory: string) {
-    setFilters((prev) => ({ ...prev, territory }));
-  }
-
-  function handleStaffClick(staffId: string) {
-    setFilters((prev) => ({ ...prev, staffId }));
-  }
-
   const activeLabel = buildActiveLabel(filters, meta);
 
   return (
@@ -160,13 +151,11 @@ export function ReportsPage() {
           data={report.byTerritory}
           loading={loading}
           activeTerritory={filters.territory || undefined}
-          onTerritoryClick={handleTerritoryClick}
         />
         <StaffBreakdownTable
           data={report.byStaff}
           loading={loading}
           activeStaffId={filters.staffId || undefined}
-          onStaffClick={handleStaffClick}
         />
       </div>
 

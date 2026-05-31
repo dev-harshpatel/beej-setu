@@ -11,10 +11,12 @@ export const GET = withAuth(
     const seedId   = searchParams.get("seedId")   ?? undefined;
     const dateFrom = searchParams.get("dateFrom") ?? undefined;
     const dateTo   = searchParams.get("dateTo")   ?? undefined;
+    const staffId  = searchParams.get("staffId")  ?? undefined;
 
     const db = getSupabaseAdminClient();
 
     const { data: orders } = await ordersQueries.getAll(db, {
+      staffId,
       dateFrom,
       dateTo,
       pageSize: 500,
