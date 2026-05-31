@@ -14,7 +14,7 @@ export default function DashboardLayout({
     <SidebarProvider className="h-svh overflow-hidden">
       <AuthSync />
       <AppSidebar />
-      <SidebarInset className="min-h-0 overflow-hidden">{children}</SidebarInset>
+      <SidebarInset className="min-h-0 overflow-y-auto">{children}</SidebarInset>
     </SidebarProvider>
   );
 }

@@ -559,13 +559,6 @@ export function CreateOrderForm() {
           </Button>
         </div>
 
-        {!canProceed && (
-          <p className="text-center text-xs text-muted-foreground -mt-2">
-            {!dealerId
-              ? "Select a dealer to continue"
-              : "Select at least one crop with a variety and quantity"}
-          </p>
-        )}
       </div>
 
       <OrderConfirmModal

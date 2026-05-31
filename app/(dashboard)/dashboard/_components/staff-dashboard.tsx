@@ -11,8 +11,6 @@ import { useAuth } from "@/hooks/use-auth";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
 
-const ANNUAL_TARGET = 1200000;
-
 export function StaffDashboard() {
   const { user } = useAuth();
 
@@ -39,13 +37,24 @@ export function StaffDashboard() {
     staleTime: 60_000,
   });
 
+  const { data: pendingData } = useQuery({
+    queryKey: ["staff-pending-orders", user?.id],
+    queryFn: async () => {
+      const res  = await fetch(`/api/orders?staffId=${user!.id}&status=PENDING&pageSize=1`);
+      const json = await res.json();
+      return json.data as { total: number };
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
   const orders = ordersData?.data ?? [];
   const lastOrder = orders[0] ?? null;
 
   const stats = {
     dealersUnderMe: dealersData?.total ?? 0,
-    annualTarget:   ANNUAL_TARGET,
-    achievedSoFar:  0,
+    totalOrders:    ordersData?.total ?? 0,
+    pendingOrders:  pendingData?.total ?? 0,
     lastOrderDate: lastOrder
       ? new Date(lastOrder.created_at).toLocaleDateString("en-IN", {
           day: "2-digit", month: "short", year: "numeric",

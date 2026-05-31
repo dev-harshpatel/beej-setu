@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthStoreState & AuthActions>()(
             localStorage.setItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken);
             localStorage.setItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
           }
-          set({ user, tokens, isAuthenticated: true, isLoading: false });
+          set({ user, tokens, isAuthenticated: true, isLoading: false, _hasHydrated: true });
         },
 
         setUser: (user) => set({ user }),
@@ -52,7 +52,7 @@ export const useAuthStore = create<AuthStoreState & AuthActions>()(
             localStorage.removeItem(LOCAL_STORAGE_KEYS.AUTH_TOKEN);
             localStorage.removeItem(LOCAL_STORAGE_KEYS.REFRESH_TOKEN);
           }
-          set(initialState);
+          set({ ...initialState, _hasHydrated: true });
         },
 
         setHasHydrated: (value) => set({ _hasHydrated: value }),

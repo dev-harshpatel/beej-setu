@@ -65,6 +65,7 @@ interface EditFields {
 
 type OrderUnit = "Bag" | "Packet" | "Box";
 type ItemEdit = { quantity: number; unit: OrderUnit };
+type ItemEditState = { quantity: number | ""; unit: OrderUnit };
 
 // ── Stock Summary Panel ───────────────────────────────────────────────────────
 
@@ -224,7 +225,7 @@ export function OrderDetailDrawer({
   const canEdit          = hasPermission(PERMISSIONS.ORDERS_EDIT);
 
   const [editFields, setEditFields] = useState<EditFields>({ notes: "", delivery_date: "" });
-  const [itemEdits, setItemEdits] = useState<Record<string, ItemEdit>>({});
+  const [itemEdits, setItemEdits] = useState<Record<string, ItemEditState>>({});
   const [pendingStatus, setPendingStatus] = useState<OrderStatusValue | "">("");
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -272,24 +273,32 @@ export function OrderDetailDrawer({
     setSaveError(null);
   }
 
+  function hasEmptyQuantities(): boolean {
+    return Object.values(itemEdits).some((edit) => edit.quantity === "");
+  }
+
   // Returns true if any item quantity was reduced from the original
   function hasReducedQuantities(): boolean {
     if (!order) return false;
     return (order.items ?? []).some((item) => {
       const edited = itemEdits[item.id];
-      return edited !== undefined && edited.quantity < item.quantity;
+      return edited !== undefined && edited.quantity !== "" && edited.quantity < item.quantity;
     });
   }
 
   async function handleSave() {
     if (!order) return;
+    if (hasEmptyQuantities()) {
+      setSaveError("All item quantities must be filled in.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
       await onUpdate(
         order.id,
         { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
-        itemEdits,
+        itemEdits as Record<string, ItemEdit>,
       );
       setMode("view");
       onRefresh();
@@ -303,6 +312,10 @@ export function OrderDetailDrawer({
   // Saves edits then opens the batch-selection confirm modal (or approves directly if no modal).
   async function handleSaveAndApprove() {
     if (!order) return;
+    if (hasEmptyQuantities()) {
+      setSaveError("All item quantities must be filled in.");
+      return;
+    }
     if (hasReducedQuantities()) {
       setReasonModalOpen(true);
       return;
@@ -313,7 +326,7 @@ export function OrderDetailDrawer({
       await onUpdate(
         order.id,
         { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
-        itemEdits,
+        itemEdits as Record<string, ItemEdit>,
       );
       setMode("view");
       if (onApprove) {
@@ -339,7 +352,7 @@ export function OrderDetailDrawer({
       await onUpdate(
         order.id,
         { notes: editFields.notes || undefined, delivery_date: editFields.delivery_date || undefined },
-        itemEdits,
+        itemEdits as Record<string, ItemEdit>,
       );
       await onStatusChange(order.id, ORDER_STATUSES.PARTIALLY_APPROVED, reason);
       setMode("view");
@@ -544,7 +557,7 @@ export function OrderDetailDrawer({
                               setItemEdits((prev) => ({
                                 ...prev,
                                 [item.id]: {
-                                  quantity: Number(e.target.value),
+                                  quantity: e.target.value === "" ? "" : Number(e.target.value),
                                   unit: prev[item.id]?.unit ?? (item.unit ?? "Bag") as OrderUnit,
                                 },
                               }))
@@ -837,7 +850,7 @@ export function OrderDetailDrawer({
       items={(order.items ?? [])
         .filter((item) => {
           const edited = itemEdits[item.id];
-          return edited !== undefined && edited.quantity < item.quantity;
+          return edited !== undefined && edited.quantity !== "" && edited.quantity < item.quantity;
         })
         .map((item) => ({
           itemId:      item.id,
@@ -845,7 +858,7 @@ export function OrderDetailDrawer({
           variety:     item.seed?.variety ?? "",
           unit:        itemEdits[item.id]?.unit ?? item.unit ?? "Bag",
           requestedQty: item.requested_quantity ?? item.quantity,
-          approvedQty:  itemEdits[item.id]?.quantity ?? item.quantity,
+          approvedQty:  (itemEdits[item.id]?.quantity as number | undefined) ?? item.quantity,
         }))}
       onConfirm={handleApproveWithReason}
       onCancel={() => setReasonModalOpen(false)}
