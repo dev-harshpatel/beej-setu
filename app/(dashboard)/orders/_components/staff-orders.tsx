@@ -106,32 +106,54 @@ export function StaffOrders() {
         </TabsList>
       </Tabs>
 
-      {/* Table */}
+      {/* Table / Cards */}
       {loading ? (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Dealer</TableHead>
-                <TableHead className="hidden sm:table-cell">Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                  <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-7 w-8 ml-auto" /></TableCell>
+        <>
+          {/* Mobile skeleton */}
+          <div className="md:hidden flex flex-col gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-border border-l-4 border-l-muted bg-card p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-3.5 w-40" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3 w-10" />
+                </div>
+                <div className="pt-1.5 border-t border-border">
+                  <Skeleton className="h-8 w-24 ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop skeleton */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order #</TableHead>
+                  <TableHead>Dealer</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-7 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-border py-16 text-muted-foreground">
           <ShoppingBagIcon className="size-8 opacity-40" />
@@ -145,57 +167,102 @@ export function StaffOrders() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Dealer</TableHead>
-                <TableHead className="hidden sm:table-cell">Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-mono text-xs font-medium">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden flex flex-col gap-3">
+            {orders.map((order) => {
+              const itemCount = order.items?.length ?? 0;
+              const date = new Date(order.created_at).toLocaleDateString("en-IN", {
+                day: "2-digit", month: "short", year: "numeric",
+              });
+              return (
+              <div
+                key={order.id}
+                className="rounded-lg border border-border border-l-4 border-l-muted bg-card p-3 flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-semibold text-foreground truncate">
                     {order.order_number}
-                  </TableCell>
-                  <TableCell className="font-medium">
+                    <span className="font-sans font-normal text-muted-foreground"> · {date}</span>
+                  </span>
+                  <OrderStatusBadge status={order.status} />
+                </div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground leading-snug truncate">
                     {order.dealer?.name ?? "—"}
-                    <span className="block text-xs text-muted-foreground sm:hidden">
+                  </p>
+                  <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                    {itemCount} item{itemCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="pt-1.5 border-t border-border flex justify-end">
+                  <Button
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => { setSelectedOrder(order); setDrawerOpen(true); }}
+                  >
+                    <EyeIcon className="size-3.5" />
+                    View
+                  </Button>
+                </div>
+              </div>
+            );
+            })}
+          </div>
+
+          {/* Desktop table — unchanged */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order #</TableHead>
+                  <TableHead>Dealer</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono text-xs font-medium">
+                      {order.order_number}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {order.dealer?.name ?? "—"}
+                      <span className="block text-xs text-muted-foreground sm:hidden">
+                        {new Date(order.created_at).toLocaleDateString("en-IN", {
+                          day: "2-digit", month: "short", year: "numeric",
+                        })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(order.created_at).toLocaleDateString("en-IN", {
                         day: "2-digit", month: "short", year: "numeric",
                       })}
-                    </span>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
-                    {new Date(order.created_at).toLocaleDateString("en-IN", {
-                      day: "2-digit", month: "short", year: "numeric",
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <OrderStatusBadge status={order.status} />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => { setSelectedOrder(order); setDrawerOpen(true); }}
-                      >
-                        <EyeIcon className="size-3.5" />
-                        View
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                    </TableCell>
+                    <TableCell>
+                      <OrderStatusBadge status={order.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => { setSelectedOrder(order); setDrawerOpen(true); }}
+                        >
+                          <EyeIcon className="size-3.5" />
+                          View
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}

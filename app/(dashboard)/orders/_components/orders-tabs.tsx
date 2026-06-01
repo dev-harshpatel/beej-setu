@@ -107,7 +107,7 @@ export function OrdersTabs() {
 
   // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 300);
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [search]);
 
@@ -290,7 +290,9 @@ export function OrdersTabs() {
           <div className="sm:hidden">
             <Select value={activeTab} onValueChange={(v) => v && handleTabChange(v)}>
               <SelectTrigger className="h-8 w-44 text-xs">
-                <SelectValue />
+                <SelectValue>
+                  {(isDispatchStaff ? DISPATCH_TABS : ADMIN_TABS).find((t) => t.value === activeTab)?.label}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {(isDispatchStaff ? DISPATCH_TABS : ADMIN_TABS).map((t) => (

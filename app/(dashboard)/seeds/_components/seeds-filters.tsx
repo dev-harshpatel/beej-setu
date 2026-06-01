@@ -2,7 +2,7 @@
 
 import { SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import type { CropRow } from "@/types/database.types";
 
 export interface SeedFilters {
@@ -19,12 +19,15 @@ interface SeedsFiltersProps {
 }
 
 export function SeedsFilters({ filters, crops, varieties, onChange }: SeedsFiltersProps) {
-  function set(key: keyof SeedFilters, value: string) {
-    onChange({ ...filters, [key]: value });
-  }
+  const cropItems = [
+    { value: "", label: "All Crops" },
+    ...crops.map((c) => ({ value: c.id, label: c.name })),
+  ];
 
-  const selectedCrop    = crops.find((c) => c.id === filters.cropId);
-  const cropSelected    = !!filters.cropId;
+  const varietyItems = [
+    { value: "", label: "All Varieties" },
+    ...varieties.map((v) => ({ value: v, label: v })),
+  ];
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -33,47 +36,32 @@ export function SeedsFilters({ filters, crops, varieties, onChange }: SeedsFilte
         <Input
           placeholder="Search by variety or pack size…"
           value={filters.search}
-          onChange={(e) => set("search", e.target.value)}
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
           className="pl-9 h-9"
         />
       </div>
 
-      <Select
-        value={filters.cropId || "all"}
-        onValueChange={(v) => onChange({ ...filters, cropId: v === "all" ? "" : (v ?? ""), variety: "" })}
-      >
-        <SelectTrigger className="h-9 w-full sm:w-48">
-          <span className="flex-1 text-left text-sm truncate">
-            {selectedCrop ? selectedCrop.name : <span className="text-muted-foreground">All Crops</span>}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Crops</SelectItem>
-          {crops.map((c) => (
-            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        items={cropItems}
+        value={filters.cropId}
+        onValueChange={(v) => onChange({ ...filters, cropId: v, variety: "" })}
+        placeholder="All Crops"
+        searchPlaceholder="Search crops…"
+        className="h-9 w-full sm:w-48"
+        popoverClassName="min-w-48"
+        wrap
+      />
 
-      <Select
-        value={filters.variety || "all"}
-        onValueChange={(v) => set("variety", v === "all" ? "" : (v ?? ""))}
-        disabled={!cropSelected}
-      >
-        <SelectTrigger className="h-9 w-full sm:w-48" disabled={!cropSelected}>
-          <span className="flex-1 text-left text-sm truncate">
-            {filters.variety
-              ? filters.variety
-              : <span className="text-muted-foreground">{cropSelected ? "All Varieties" : "Select crop first"}</span>}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Varieties</SelectItem>
-          {varieties.map((v) => (
-            <SelectItem key={v} value={v}>{v}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        items={varietyItems}
+        value={filters.variety}
+        onValueChange={(v) => onChange({ ...filters, variety: v })}
+        placeholder={filters.cropId ? "All Varieties" : "Select crop first"}
+        searchPlaceholder="Search varieties…"
+        disabled={!filters.cropId}
+        className="h-9 w-full sm:w-48"
+        popoverClassName="min-w-48"
+      />
     </div>
   );
 }

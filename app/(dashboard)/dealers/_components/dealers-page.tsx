@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,7 +30,6 @@ export function DealersPage() {
   const [page, setPage]             = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters]       = useState<DealerFilters>({ search: "", status: "", territory: "" });
-  const [territories, setTerritories] = useState<string[]>([]);
 
   const [formOpen, setFormOpen]     = useState(false);
   const [editDealer, setEditDealer] = useState<DealerWithStaffRow | null>(null);
@@ -68,21 +67,14 @@ export function DealersPage() {
     placeholderData: keepPreviousData,
   });
 
-  const dealers = dealersData?.data ?? [];
+  const dealers = useMemo(() => dealersData?.data ?? [], [dealersData]);
   const total   = dealersData?.total ?? 0;
   const loading = dealersFetching && !dealersData;
 
-  // Accumulate territory options from fetched rows
-  useEffect(() => {
-    const incoming = dealers.map((d) => d.territory).filter(Boolean) as string[];
-    if (!incoming.length) return;
-    setTerritories((prev) => {
-      const merged = [...new Set([...prev, ...incoming])];
-      return merged.length === prev.length && merged.every((t) => prev.includes(t))
-        ? prev
-        : merged;
-    });
-  }, [dealers]);
+  const territories = useMemo(
+    () => [...new Set(dealers.map((d) => d.territory).filter(Boolean) as string[])],
+    [dealers],
+  );
 
   // ── Staff list (for form dropdowns) ──────────────────────
   const { data: staffListData } = useQuery({
@@ -115,7 +107,7 @@ export function DealersPage() {
   const hasFilters = !!(filters.search || filters.status || filters.territory);
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="h-full flex flex-col gap-4 pb-4">
       <DealersHeader total={total} canCreate={canCreate} onAdd={openAdd} />
       <DealersFilters
         searchInput={searchInput}
@@ -125,19 +117,21 @@ export function DealersPage() {
         onChange={handleFiltersChange}
       />
 
-      {!loading && dealers.length === 0 ? (
-        <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} />
-      ) : (
-        <DealersTable
-          dealers={dealers}
-          loading={loading}
-          isStaff={isStaff}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onEdit={openEdit}
-          onDelete={openDelete}
-        />
-      )}
+      <div className="flex-1 min-h-0">
+        {!loading && dealers.length === 0 ? (
+          <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} />
+        ) : (
+          <DealersTable
+            dealers={dealers}
+            loading={loading}
+            isStaff={isStaff}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onEdit={openEdit}
+            onDelete={openDelete}
+          />
+        )}
+      </div>
 
       {totalPages > 1 && (
         <DealersPagination page={page} totalPages={totalPages} onPageChange={setPage} />

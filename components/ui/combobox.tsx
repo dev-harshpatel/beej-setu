@@ -20,6 +20,7 @@ interface ComboboxProps {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  popoverClassName?: string;
   /** Allow item labels to wrap instead of truncating */
   wrap?: boolean;
 }
@@ -33,6 +34,7 @@ export function Combobox({
   emptyText = "No results found",
   disabled = false,
   className,
+  popoverClassName,
   wrap = false,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -81,7 +83,7 @@ export function Combobox({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-(--anchor-width) min-w-48 p-0 gap-0"
+        className={cn("w-(--anchor-width) min-w-48 p-0 gap-0", popoverClassName)}
         align="start"
         sideOffset={4}
       >

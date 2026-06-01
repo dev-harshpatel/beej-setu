@@ -33,7 +33,7 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
 
   if (loading) {
     return (
-      <div className="overflow-auto rounded-lg border border-border max-h-[420px] sm:max-h-[520px] lg:max-h-[620px]">
+      <div className="overflow-auto rounded-lg border border-border h-full">
         <table className="w-full caption-bottom text-sm">
           {headerRow}
           <TableBody>
@@ -54,7 +54,7 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
   }
 
   return (
-    <div className="overflow-auto rounded-lg border border-border max-h-[420px] sm:max-h-[520px] lg:max-h-[620px]">
+    <div className="overflow-auto rounded-lg border border-border h-full">
       <table className="w-full caption-bottom text-sm">
         {headerRow}
         <TableBody>

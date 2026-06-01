@@ -9,15 +9,15 @@ export const metadata: Metadata = {
 
 export default function DealersRoute() {
   return (
-    <>
+    <div className="h-full flex flex-col">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 data-vertical:h-4 data-vertical:self-auto" />
         <h1 className="text-sm font-medium">Dealers</h1>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 sm:px-5 pt-3 sm:pt-4">
+      <div className="flex-1 min-h-0 overflow-hidden px-4 sm:px-5 pt-3 sm:pt-4">
         <DealersPage />
       </div>
-    </>
+    </div>
   );
 }

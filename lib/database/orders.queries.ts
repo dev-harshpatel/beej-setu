@@ -35,7 +35,25 @@ export const ordersQueries = {
       .select(ORDER_SELECT, { count: "exact" });
 
     if (params?.search) {
-      query = query.ilike("order_number", `%${params.search}%`);
+      const s = `%${params.search}%`;
+
+      // Resolve dealer/staff IDs matching the search term in parallel
+      const [{ data: dealerMatches }, { data: staffMatches }] = await Promise.all([
+        db.from("dealers").select("id").ilike("name", s),
+        db.from("profiles").select("id").ilike("name", s),
+      ]);
+
+      const dealerIds = (dealerMatches ?? []).map((d) => d.id);
+      const staffIds  = (staffMatches ?? []).map((p) => p.id);
+
+      const orParts = [
+        `order_number.ilike.${s}`,
+        `center.ilike.${s}`,
+        ...(dealerIds.length ? [`dealer_id.in.(${dealerIds.join(",")})`] : []),
+        ...(staffIds.length  ? [`staff_id.in.(${staffIds.join(",")})`]   : []),
+      ];
+
+      query = query.or(orParts.join(","));
     }
     if (params?.statuses && params.statuses.length > 0) {
       query = query.in("status", params.statuses as OrderRow["status"][]);
