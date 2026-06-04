@@ -88,16 +88,16 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
         body: JSON.stringify(values),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        if (json.errors) {
+        if (json?.errors) {
           const firstError = Object.values(
             json.errors as Record<string, string[]>,
           )[0]?.[0];
-          setServerError(firstError ?? json.message);
+          setServerError(firstError ?? json.message ?? "Failed to create user");
         } else {
-          setServerError(json.message ?? "Failed to create user");
+          setServerError(json?.message ?? "Failed to create user");
         }
         return;
       }
@@ -136,7 +136,7 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
               </Field>
 
               <Field data-invalid={!!errors.email}>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="email">Email <span className="text-muted-foreground font-normal">(optional)</span></FieldLabel>
                 <Input
                   id="email"
                   type="email"

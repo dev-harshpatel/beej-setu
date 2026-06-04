@@ -45,7 +45,8 @@ export const POST = withAuth(
       );
     }
 
-    const { name, email, username, password, role, territory } = parsed.data;
+    const { name, email: rawEmail, username, password, role, territory } = parsed.data;
+    const email = rawEmail && rawEmail.trim() !== "" ? rawEmail : `${username}@noemail.internal`;
 
     // Admins cannot create Super Admin users
     if (auth.profile.role === ROLES.ADMIN && role === ROLES.SUPER_ADMIN) {
@@ -85,6 +86,15 @@ export const POST = withAuth(
       );
     }
 
+    let encryptedPassword: string;
+    try {
+      encryptedPassword = encryptPassword(password);
+    } catch (e) {
+      await adminClient.auth.admin.deleteUser(authData.user.id);
+      const msg = e instanceof Error ? e.message : "Encryption configuration error";
+      return apiError(msg, 500);
+    }
+
     // Insert profile row
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
@@ -93,7 +103,7 @@ export const POST = withAuth(
         name,
         username: username.toLowerCase(),
         role,
-        encrypted_password: encryptPassword(password),
+        encrypted_password: encryptedPassword,
         ...(territory ? { territory } : {}),
       })
       .select()
