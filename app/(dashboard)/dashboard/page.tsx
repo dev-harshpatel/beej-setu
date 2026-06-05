@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DashboardRouter } from "./_components/dashboard-router";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
   return (
-    <>
+    <div className="h-full flex flex-col overflow-hidden">
       <header className="sticky top-0 z-10 bg-background flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -18,9 +21,9 @@ export default function DashboardPage() {
         />
         <h1 className="text-sm font-medium">Dashboard</h1>
       </header>
-      <div className="flex-1 flex flex-col px-4 sm:px-5 pt-3 sm:pt-4 pb-4">
+      <div className="flex-1 min-h-0 flex flex-col px-4 sm:px-5 pt-3 sm:pt-4 pb-4 overflow-hidden">
         <DashboardRouter />
       </div>
-    </>
+    </div>
   );
 }

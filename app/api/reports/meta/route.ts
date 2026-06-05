@@ -23,5 +23,5 @@ export const GET = withAuth(
       staffList: (staffResult.data ?? []) as Pick<ProfileRow, "id" | "name" | "territory">[],
     });
   },
-  PERMISSIONS.REPORTS_VIEW
+  PERMISSIONS.USERS_VIEW
 );

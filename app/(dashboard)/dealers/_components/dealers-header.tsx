@@ -1,15 +1,16 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DealersHeaderProps {
   total: number;
   canCreate: boolean;
   onAdd: () => void;
+  onUpload: () => void;
 }
 
-export function DealersHeader({ total, canCreate, onAdd }: DealersHeaderProps) {
+export function DealersHeader({ total, canCreate, onAdd, onUpload }: DealersHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-start justify-between gap-3 sm:items-center">
       <div>
         <h2 className="text-xl font-semibold text-foreground">Dealers</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -17,10 +18,17 @@ export function DealersHeader({ total, canCreate, onAdd }: DealersHeaderProps) {
         </p>
       </div>
       {canCreate && (
-        <Button size="sm" className="w-full sm:w-auto gap-1.5" onClick={onAdd}>
-          <PlusIcon className="size-4" />
-          Add Dealer
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onUpload}>
+            <UploadIcon className="size-3.5" />
+            <span className="hidden sm:inline">Upload Sheet</span>
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={onAdd}>
+            <PlusIcon className="size-4" />
+            <span className="hidden sm:inline">Add Dealer</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+        </div>
       )}
     </div>
   );

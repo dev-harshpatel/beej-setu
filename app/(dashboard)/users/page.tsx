@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { UserTabs } from "./_components/user-tabs";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Users",
 };
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requirePermission(PERMISSIONS.USERS_VIEW);
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

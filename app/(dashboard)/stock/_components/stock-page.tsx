@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PERMISSIONS } from "@/constants/roles.constants";
@@ -32,16 +32,19 @@ export function StockPage() {
   const [deleteStock, setDeleteStock] = useState<SeedStockWithDetails | null>(null);
   const [uploadOpen, setUploadOpen]   = useState(false);
 
-  // ── Stock list ────────────────────────────────────────────
+  // Reset page on search change
+  useEffect(() => { setPage(1); }, [filters.search]);
+
+  // ── Stock list — fetch all, filter client-side ────────────
+  // No search param: search is instant and zero round-trips.
   // Realtime invalidation automatically refetches when seed_stock changes.
-  const { data: stockData, isFetching: stockFetching } = useQuery({
+  const { data: stockData, isFetching: stockFetching, refetch: refetchStock } = useQuery({
     queryKey: [
       ...QUERY_KEYS.STOCK,
-      { page, pageSize: PAGE_SIZE, search: filters.search, cropId: filters.cropId },
+      { cropId: filters.cropId },
     ],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
-      if (filters.search) params.set("search", filters.search);
+      const params = new URLSearchParams({ pageSize: "500" });
       if (filters.cropId) params.set("cropId", filters.cropId);
       const res  = await fetch(`/api/stock?${params}`);
       const json = await res.json();
@@ -51,9 +54,28 @@ export function StockPage() {
     placeholderData: keepPreviousData,
   });
 
-  const rows    = stockData?.data ?? [];
-  const total   = stockData?.total ?? 0;
-  const loading = stockFetching && !stockData;
+  const allRows      = useMemo(() => stockData?.data ?? [], [stockData]);
+  const loading      = stockFetching && !stockData;
+  const isRefreshing = stockFetching && !!stockData;
+
+  // Client-side search filter (instant)
+  const filteredRows = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    if (!q) return allRows;
+    return allRows.filter((r) =>
+      r.seed_product?.variety.toLowerCase().includes(q) ||
+      r.seed_product?.pack_size.toLowerCase().includes(q) ||
+      r.seed_product?.crop?.name.toLowerCase().includes(q),
+    );
+  }, [allRows, filters.search]);
+
+  // Client-side pagination
+  const total      = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rows       = useMemo(
+    () => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredRows, page],
+  );
 
   // ── Crops (filter dropdown) ───────────────────────────────
   const { data: crops = [] } = useQuery({
@@ -80,13 +102,12 @@ export function StockPage() {
 
   function handleFiltersChange(next: StockFiltersType) { setFilters(next); setPage(1); }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasFilters = !!(filters.search || filters.cropId);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-4 px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
-        <StockHeader total={total} canManage={canManage} onAdd={() => { setEditStock(null); setFormOpen(true); }} onUpload={() => setUploadOpen(true)} />
+        <StockHeader total={total} canManage={canManage} isRefreshing={isRefreshing} onRefresh={() => refetchStock()} onAdd={() => { setEditStock(null); setFormOpen(true); }} onUpload={() => setUploadOpen(true)} />
         <StockFilters filters={filters} crops={crops} onChange={handleFiltersChange} />
       </div>
 

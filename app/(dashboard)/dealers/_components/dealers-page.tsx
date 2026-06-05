@@ -6,57 +6,52 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useAuth } from "@/hooks/use-auth";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { DealersHeader } from "./dealers-header";
 import { DealersFilters, type DealerFilters } from "./dealers-filters";
 import { DealersTable } from "./dealers-table";
 import { DealersEmpty } from "./dealers-empty";
-import { DealersPagination } from "./dealers-pagination";
 import { DealerFormDialog } from "./dealer-form-dialog";
 import { DealerDeleteDialog } from "./dealer-delete-dialog";
+import { DealerUploadDialog } from "./dealer-upload-dialog";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { DealerWithStaffRow } from "@/lib/database/dealers.queries";
 import type { ProfileRow } from "@/types/database.types";
 
-const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
+const DEFAULT_PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 
 export function DealersPage() {
-  const { user } = useAuth();
-  const isStaff = user?.role === ROLES.STAFF;
+  const { user }          = useAuth();
+  const isStaff           = user?.role === ROLES.STAFF;
   const { hasPermission } = usePermissions();
-  const canCreate = hasPermission(PERMISSIONS.DEALERS_CREATE);
-  const canEdit   = hasPermission(PERMISSIONS.DEALERS_EDIT);
-  const canDelete = hasPermission(PERMISSIONS.DEALERS_DELETE);
+  const canCreate         = hasPermission(PERMISSIONS.DEALERS_CREATE);
+  const canEdit           = hasPermission(PERMISSIONS.DEALERS_EDIT);
+  const canDelete         = hasPermission(PERMISSIONS.DEALERS_DELETE);
 
-  const [page, setPage]             = useState(1);
+  const [page, setPage]           = useState(1);
+  const [pageSize, setPageSize]   = useState<number>(DEFAULT_PAGE_SIZE);
   const [searchInput, setSearchInput] = useState("");
-  const [filters, setFilters]       = useState<DealerFilters>({ search: "", status: "", territory: "" });
+  const [filters, setFilters]     = useState<DealerFilters>({ search: "", status: "", territory: "" });
 
-  const [formOpen, setFormOpen]     = useState(false);
-  const [editDealer, setEditDealer] = useState<DealerWithStaffRow | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [formOpen, setFormOpen]         = useState(false);
+  const [editDealer, setEditDealer]     = useState<DealerWithStaffRow | null>(null);
+  const [deleteOpen, setDeleteOpen]     = useState(false);
   const [deleteDealer, setDeleteDealer] = useState<DealerWithStaffRow | null>(null);
+  const [uploadOpen, setUploadOpen]     = useState(false);
 
-  // Debounce search
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setFilters((prev) =>
-        prev.search === searchInput ? prev : { ...prev, search: searchInput },
-      );
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(id);
-  }, [searchInput]);
+  // Reset to page 1 on search change (instant, no debounce)
+  useEffect(() => { setPage(1); }, [searchInput]);
 
-  // ── Dealers list ──────────────────────────────────────────
+  // ── Dealers list — fetch all, filter client-side ──────────
+  // No search param: search is instant and zero round-trips.
   // Realtime invalidation automatically refetches when the dealers table changes.
   const { data: dealersData, isFetching: dealersFetching } = useQuery({
     queryKey: [
       ...QUERY_KEYS.DEALERS,
-      { page, pageSize: PAGE_SIZE, search: filters.search, status: filters.status, territory: filters.territory },
+      { status: filters.status, territory: filters.territory },
     ],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
-      if (filters.search)    params.set("search", filters.search);
+      const params = new URLSearchParams({ page: "1", pageSize: "500" });
       if (filters.status)    params.set("status", filters.status);
       if (filters.territory) params.set("territory", filters.territory);
       const res  = await fetch(`/api/dealers?${params}`);
@@ -67,13 +62,32 @@ export function DealersPage() {
     placeholderData: keepPreviousData,
   });
 
-  const dealers = useMemo(() => dealersData?.data ?? [], [dealersData]);
-  const total   = dealersData?.total ?? 0;
-  const loading = dealersFetching && !dealersData;
+  const allDealers = useMemo(() => dealersData?.data ?? [], [dealersData]);
+  const loading    = dealersFetching && !dealersData;
+
+  // Client-side search filter (instant)
+  const filteredDealers = useMemo(() => {
+    const q = searchInput.trim().toLowerCase();
+    if (!q) return allDealers;
+    return allDealers.filter((d) =>
+      d.name.toLowerCase().includes(q) ||
+      d.contact.includes(q) ||
+      d.territory?.toLowerCase().includes(q) ||
+      d.staff?.name.toLowerCase().includes(q),
+    );
+  }, [allDealers, searchInput]);
+
+  // Client-side pagination on filtered results
+  const total      = filteredDealers.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const dealers    = useMemo(
+    () => filteredDealers.slice((page - 1) * pageSize, page * pageSize),
+    [filteredDealers, page, pageSize],
+  );
 
   const territories = useMemo(
-    () => [...new Set(dealers.map((d) => d.territory).filter(Boolean) as string[])],
-    [dealers],
+    () => [...new Set(allDealers.map((d) => d.territory).filter(Boolean) as string[])],
+    [allDealers],
   );
 
   // ── Staff list (for form dropdowns) ──────────────────────
@@ -85,41 +99,51 @@ export function DealersPage() {
       return (json.data?.data ?? []) as ProfileRow[];
     },
     enabled: canCreate || canEdit,
-    staleTime: 5 * 60_000, // staff list changes rarely
+    staleTime: 5 * 60_000,
   });
   const staffList = staffListData ?? [];
+
+  const hasFilters = !!(searchInput || filters.status || filters.territory);
 
   // ── Handlers ──────────────────────────────────────────────
   function handleFiltersChange(next: DealerFilters) {
     setFilters((prev) =>
-      prev.search === next.search && prev.status === next.status && prev.territory === next.territory
-        ? prev : next,
+      prev.status === next.status && prev.territory === next.territory ? prev : next,
     );
     if (next.search !== searchInput) setSearchInput(next.search);
     setPage(1);
+  }
+
+  function handleReset() {
+    setSearchInput("");
+    setFilters({ search: "", status: "", territory: "" });
+    setPage(1);
+    setPageSize(DEFAULT_PAGE_SIZE);
   }
 
   function openAdd()                          { setEditDealer(null); setFormOpen(true); }
   function openEdit(d: DealerWithStaffRow)    { setEditDealer(d); setFormOpen(true); }
   function openDelete(d: DealerWithStaffRow)  { setDeleteDealer(d); setDeleteOpen(true); }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasFilters = !!(filters.search || filters.status || filters.territory);
-
   return (
-    <div className="h-full flex flex-col gap-4 pb-4">
-      <DealersHeader total={total} canCreate={canCreate} onAdd={openAdd} />
-      <DealersFilters
-        searchInput={searchInput}
-        onSearchChange={setSearchInput}
-        filters={filters}
-        territories={territories}
-        onChange={handleFiltersChange}
-      />
+    <div className="flex flex-col h-full">
 
-      <div className="flex-1 min-h-0">
+      {/* ── Static top: header + filters ──────────────────── */}
+      <div className="flex flex-col gap-3 pb-4 shrink-0">
+        <DealersHeader total={total} canCreate={canCreate} onAdd={openAdd} onUpload={() => setUploadOpen(true)} />
+        <DealersFilters
+          searchInput={searchInput}
+          onSearchChange={setSearchInput}
+          filters={filters}
+          territories={territories}
+          onChange={handleFiltersChange}
+        />
+      </div>
+
+      {/* ── Scrollable middle: table or empty state ────────── */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         {!loading && dealers.length === 0 ? (
-          <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} />
+          <DealersEmpty hasFilters={hasFilters} canCreate={canCreate} onAdd={openAdd} onReset={hasFilters ? handleReset : undefined} />
         ) : (
           <DealersTable
             dealers={dealers}
@@ -133,11 +157,26 @@ export function DealersPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <DealersPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      {/* ── Sticky bottom: pagination bar ─────────────────── */}
+      {!loading && total > 0 && (
+        <div className="shrink-0 border-t border-border bg-background py-3">
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+          />
+        </div>
       )}
 
-      {/* onSuccess is now a no-op — realtime invalidation handles the refetch */}
+      {/* Dialogs */}
+      <DealerUploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onSuccess={() => setUploadOpen(false)}
+      />
       <DealerFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}

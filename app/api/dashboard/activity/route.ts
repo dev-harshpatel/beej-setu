@@ -115,4 +115,4 @@ export const GET = withAuth(async () => {
   events.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return apiSuccess(events.slice(0, 20));
-}, PERMISSIONS.ORDERS_VIEW);
+}, PERMISSIONS.DASHBOARD_VIEW);

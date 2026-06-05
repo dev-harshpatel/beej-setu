@@ -1,9 +1,10 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { usersQueries } from "@/lib/database/users.queries";
 import { loginSchema } from "@/lib/validators/auth.validators";
 import { apiSuccess, apiError } from "@/lib/api/auth-guard";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function isEmail(value: string): boolean {
   return value.includes("@");
@@ -32,6 +33,19 @@ async function resolveEmail(identifier: string): Promise<string | null> {
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit by IP — 5 attempts per 15 minutes
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+      req.headers.get("x-real-ip") ??
+      "unknown";
+    const rl = checkRateLimit(`login:${ip}`);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { success: false, message: `Too many login attempts. Try again in ${rl.retryAfterSeconds} seconds.`, data: null },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+      );
+    }
+
     const body = await req.json().catch(() => null);
     console.log("[api/login] body", body);
 

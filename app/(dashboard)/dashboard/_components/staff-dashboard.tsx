@@ -99,16 +99,20 @@ export function StaffDashboard() {
             Take New Order
           </Button>
         </Link>
-        <Link href={ROUTES.ORDERS.ROOT + "?tab=returns"}>
+        <div className="relative">
           <Button
             size="lg"
             variant="outline"
-            className="w-full h-14 text-base gap-3 border-destructive text-destructive hover:bg-destructive/5 hover:text-destructive"
+            disabled
+            className="w-full h-14 text-base gap-3 border-destructive text-destructive opacity-50 cursor-not-allowed"
           >
             <RotateCcwIcon className="size-5" />
             Sales Return
           </Button>
-        </Link>
+          <span className="absolute -top-2 -right-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border">
+            Coming Soon
+          </span>
+        </div>
       </div>
 
       {/* Recent orders */}

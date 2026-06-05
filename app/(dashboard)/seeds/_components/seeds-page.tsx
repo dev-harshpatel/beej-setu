@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { usePermissions } from "@/hooks";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
@@ -22,33 +22,29 @@ export function SeedsPage() {
   const canViewStock = hasPermission(PERMISSIONS.STOCK_MANAGE);
   const loading = !initialized || isPending;
 
-  const [products, setProducts] = useState<SeedProductWithCropRow[]>([]);
-  const [total, setTotal]       = useState(0);
-  const [page, setPage]         = useState(1);
-  const [filters, setFilters]   = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
-  const [crops, setCrops]       = useState<CropRow[]>([]);
-  const [varieties, setVarieties] = useState<string[]>([]);
+  const [allProducts, setAllProducts] = useState<SeedProductWithCropRow[]>([]);
+  const [page, setPage]               = useState(1);
+  const [filters, setFilters]         = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
+  const [crops, setCrops]             = useState<CropRow[]>([]);
+  const [varieties, setVarieties]     = useState<string[]>([]);
   const [selectedSeed, setSelectedSeed] = useState<SeedProductWithCropRow | null>(null);
 
+  // Fetch all seeds — no search param, cropId/variety filter server-side
   const fetchProducts = useCallback(() => {
     startTransition(async () => {
       try {
-        const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
-        if (filters.search)  params.set("search",  filters.search);
+        const params = new URLSearchParams({ pageSize: "500" });
         if (filters.cropId)  params.set("cropId",  filters.cropId);
         if (filters.variety) params.set("variety", filters.variety);
 
         const res  = await fetch(`/api/seeds?${params}`);
         const json = await res.json();
-        if (json.success) {
-          setProducts(json.data?.data ?? []);
-          setTotal(json.data?.total ?? 0);
-        }
+        if (json.success) setAllProducts(json.data?.data ?? []);
       } catch { /* silent */ } finally {
         setInitialized(true);
       }
     });
-  }, [page, filters]);
+  }, [filters.cropId, filters.variety]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -65,13 +61,34 @@ export function SeedsPage() {
       .then((r) => r.json())
       .then((j) => {
         if (j.success) {
-          const vs = [...new Set<string>((j.data?.data ?? []).map((p: SeedProductWithCropRow) => p.variety))]
-            .sort();
+          const vs = [...new Set<string>((j.data?.data ?? []).map((p: SeedProductWithCropRow) => p.variety))].sort();
           setVarieties(vs);
         }
       })
       .catch(() => {});
   }, [filters.cropId]);
+
+  // Reset page when search changes
+  useEffect(() => { setPage(1); }, [filters.search]);
+
+  // Client-side search filter (instant, no API call)
+  const filteredProducts = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter((p) =>
+      p.variety.toLowerCase().includes(q) ||
+      p.pack_size.toLowerCase().includes(q) ||
+      p.crop?.name.toLowerCase().includes(q),
+    );
+  }, [allProducts, filters.search]);
+
+  // Client-side pagination
+  const total      = filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const products   = useMemo(
+    () => filteredProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredProducts, page],
+  );
 
   function handleFiltersChange(next: SeedFilters) {
     const cropChanged = next.cropId !== filters.cropId;
@@ -79,7 +96,6 @@ export function SeedsPage() {
     setPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasFilters = !!(filters.search || filters.cropId || filters.variety);
 
   return (

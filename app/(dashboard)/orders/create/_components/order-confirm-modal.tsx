@@ -25,6 +25,7 @@ export type ConfirmOrderItem = {
   seedName: string;
   unit: string;
   quantity: number;
+  packetsPerBag: number;
 };
 
 type Props = {
@@ -153,24 +154,41 @@ export function OrderConfirmModal({
                   Crop Details
                 </p>
                 <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full min-w-[480px] text-sm">
+                  <table className="w-full min-w-[520px] text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
                         <th className="py-2 pl-3 pr-2 text-left text-xs font-medium text-muted-foreground">Crop</th>
                         <th className="py-2 px-2 text-left text-xs font-medium text-muted-foreground">Variety / Pack</th>
                         <th className="py-2 px-2 text-center text-xs font-medium text-muted-foreground">Unit</th>
-                        <th className="py-2 pl-2 pr-3 text-center text-xs font-medium text-muted-foreground">Qty</th>
+                        <th className="py-2 px-2 text-center text-xs font-medium text-muted-foreground">Qty</th>
+                        <th className="py-2 pl-2 pr-3 text-right text-xs font-medium text-muted-foreground">Packets Deducted</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item, idx) => (
-                        <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-muted/20"}>
-                          <td className="py-2.5 pl-3 pr-2 font-medium">{item.cropName}</td>
-                          <td className="py-2.5 px-2 text-muted-foreground">{item.seedName}</td>
-                          <td className="py-2.5 px-2 text-center">{item.unit}</td>
-                          <td className="py-2.5 pl-2 pr-3 text-center tabular-nums font-medium">{item.quantity}</td>
-                        </tr>
-                      ))}
+                      {items.map((item, idx) => {
+                        const totalPackets =
+                          item.unit === "Packet"
+                            ? item.quantity
+                            : item.quantity * item.packetsPerBag;
+                        return (
+                          <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-muted/20"}>
+                            <td className="py-2.5 pl-3 pr-2 font-medium">{item.cropName}</td>
+                            <td className="py-2.5 px-2 text-muted-foreground">{item.seedName}</td>
+                            <td className="py-2.5 px-2 text-center">{item.unit}</td>
+                            <td className="py-2.5 px-2 text-center tabular-nums font-medium">{item.quantity}</td>
+                            <td className="py-2.5 pl-2 pr-3 text-right tabular-nums">
+                              {item.unit !== "Packet" && item.packetsPerBag > 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {item.quantity} × {item.packetsPerBag} ={" "}
+                                  <span className="font-semibold text-foreground">{totalPackets} pkts</span>
+                                </span>
+                              ) : (
+                                <span className="font-semibold">{totalPackets} pkts</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SearchIcon, XIcon, SlidersHorizontalIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Combobox } from "@/components/ui/combobox";
-import type { DealerRow, ProfileRow } from "@/types/database.types";
-import { usePermissions } from "@/hooks/use-permissions";
-import { PERMISSIONS } from "@/constants/roles.constants";
+import type { FilterItem } from "../_lib/use-orders-filter-data";
 
-interface OrdersFiltersProps {
+interface FilterControls {
   search: string;
   onSearchChange: (v: string) => void;
   dealerId: string;
@@ -23,9 +21,14 @@ interface OrdersFiltersProps {
   dateTo: string;
   onDateToChange: (v: string) => void;
   onReset: () => void;
+  dealerItems: FilterItem[];
+  staffItems: FilterItem[];
+  canViewDealers: boolean;
+  canViewUsers: boolean;
 }
 
-export function OrdersFilters({
+// ── Desktop inline filter bar (rendered in the header row) ────
+export function OrdersDesktopFiltersBar({
   search,
   onSearchChange,
   dealerId,
@@ -37,102 +40,113 @@ export function OrdersFilters({
   dateTo,
   onDateToChange,
   onReset,
-}: OrdersFiltersProps) {
-  const { hasPermission } = usePermissions();
-  const canViewDealers = hasPermission(PERMISSIONS.DEALERS_VIEW);
-  const canViewUsers = hasPermission(PERMISSIONS.USERS_VIEW);
-
-  const [dealers, setDealers] = useState<DealerRow[]>([]);
-  const [staffList, setStaffList] = useState<ProfileRow[]>([]);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  useEffect(() => {
-    if (canViewDealers) {
-      fetch("/api/dealers?pageSize=100")
-        .then((r) => r.json())
-        .then((json) => setDealers(json.data?.data ?? []))
-        .catch(() => setDealers([]));
-    }
-
-    if (canViewUsers) {
-      Promise.all([
-        fetch("/api/users?role=STAFF&pageSize=100").then((r) => r.json()),
-        fetch("/api/users?role=ADMIN&pageSize=100").then((r) => r.json()),
-      ])
-        .then(([staff, admins]) => {
-          const all: ProfileRow[] = [
-            ...(staff.data?.data ?? []),
-            ...(admins.data?.data ?? []),
-          ];
-          setStaffList(all);
-        })
-        .catch(() => setStaffList([]));
-    }
-  }, [canViewDealers, canViewUsers]);
-
+  dealerItems,
+  staffItems,
+  canViewDealers,
+  canViewUsers,
+}: FilterControls) {
   const hasActiveFilters = dealerId || staffId || dateFrom || dateTo || search;
-  const activeExtraCount = [dealerId, staffId, dateFrom, dateTo].filter(Boolean).length;
-
-  const dealerItems = [
-    { value: "", label: "All dealers" },
-    ...dealers.map((d) => ({ value: d.id, label: d.name })),
-  ];
-
-  const staffItems = [
-    { value: "", label: "All staff" },
-    ...staffList.map((s) => ({ value: s.id, label: s.name })),
-  ];
-
-  const dealerCombobox = canViewDealers && (
-    <Combobox
-      items={dealerItems}
-      value={dealerId}
-      onValueChange={onDealerChange}
-      placeholder="All dealers"
-      searchPlaceholder="Search dealers…"
-      className="w-full sm:w-40"
-      popoverClassName="min-w-64"
-      wrap
-    />
-  );
-
-  const staffCombobox = canViewUsers && (
-    <Combobox
-      items={staffItems}
-      value={staffId}
-      onValueChange={onStaffChange}
-      placeholder="All staff"
-      searchPlaceholder="Search staff…"
-      className="w-full sm:w-40"
-    />
-  );
-
-  const dateRange = (
-    <div className="flex items-center gap-1.5 w-full sm:w-auto">
-      <DatePicker
-        value={dateFrom}
-        onChange={onDateFromChange}
-        placeholder="From date"
-        size="sm"
-        className="flex-1 sm:flex-none sm:w-36"
-      />
-      <span className="text-xs text-muted-foreground shrink-0">–</span>
-      <DatePicker
-        value={dateTo}
-        onChange={onDateToChange}
-        placeholder="To date"
-        size="sm"
-        minDate={dateFrom || undefined}
-        className="flex-1 sm:flex-none sm:w-36"
-      />
-    </div>
-  );
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* ── Mobile layout ── */}
-      <div className="flex gap-2 sm:hidden">
-        {/* Search */}
+    <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0 justify-end">
+      {/* Search */}
+      <div className="relative min-w-0 w-52">
+        <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search orders…"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-8 h-8 text-sm"
+        />
+      </div>
+
+      {/* Dealer */}
+      {canViewDealers && (
+        <Combobox
+          items={dealerItems}
+          value={dealerId}
+          onValueChange={onDealerChange}
+          placeholder="All dealers"
+          searchPlaceholder="Search dealers…"
+          className="w-36"
+          popoverClassName="min-w-64"
+          wrap
+        />
+      )}
+
+      {/* Staff */}
+      {canViewUsers && (
+        <Combobox
+          items={staffItems}
+          value={staffId}
+          onValueChange={onStaffChange}
+          placeholder="All staff"
+          searchPlaceholder="Search staff…"
+          className="w-32"
+        />
+      )}
+
+      {/* Date range */}
+      <div className="flex items-center gap-1">
+        <DatePicker
+          value={dateFrom}
+          onChange={onDateFromChange}
+          placeholder="From"
+          size="sm"
+          className="w-28"
+        />
+        <span className="text-xs text-muted-foreground shrink-0">–</span>
+        <DatePicker
+          value={dateTo}
+          onChange={onDateToChange}
+          placeholder="To"
+          size="sm"
+          minDate={dateFrom || undefined}
+          className="w-28"
+        />
+      </div>
+
+      {/* Reset */}
+      {hasActiveFilters && (
+        <Button
+          variant="ghost" size="sm"
+          onClick={onReset}
+          className="h-8 text-xs text-muted-foreground px-2 shrink-0"
+        >
+          <XIcon className="size-3.5" />
+          Reset
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ── Mobile-only filter section (search bar + collapsible panel) ──
+export function OrdersMobileFilters({
+  search,
+  onSearchChange,
+  dealerId,
+  onDealerChange,
+  staffId,
+  onStaffChange,
+  dateFrom,
+  onDateFromChange,
+  dateTo,
+  onDateToChange,
+  onReset,
+  dealerItems,
+  staffItems,
+  canViewDealers,
+  canViewUsers,
+}: FilterControls) {
+  const [open, setOpen] = useState(false);
+  const hasActiveFilters  = dealerId || staffId || dateFrom || dateTo || search;
+  const activeExtraCount  = [dealerId, staffId, dateFrom, dateTo].filter(Boolean).length;
+
+  return (
+    <div className="flex flex-col gap-2 sm:hidden">
+      {/* Search row */}
+      <div className="flex gap-2">
         <div className="relative flex-1 min-w-0">
           <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -143,12 +157,11 @@ export function OrdersFilters({
           />
         </div>
 
-        {/* Filters toggle */}
         <Button
-          variant={mobileFiltersOpen ? "default" : "outline"}
+          variant={open ? "default" : "outline"}
           size="sm"
           className="h-9 shrink-0 relative"
-          onClick={() => setMobileFiltersOpen((o) => !o)}
+          onClick={() => setOpen((o) => !o)}
         >
           <SlidersHorizontalIcon className="size-4" />
           {activeExtraCount > 0 && (
@@ -158,11 +171,9 @@ export function OrdersFilters({
           )}
         </Button>
 
-        {/* Reset (mobile) */}
         {hasActiveFilters && (
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             onClick={onReset}
             className="h-9 shrink-0 text-xs text-muted-foreground px-2"
           >
@@ -171,46 +182,55 @@ export function OrdersFilters({
         )}
       </div>
 
-      {/* Expanded filters on mobile */}
-      {mobileFiltersOpen && (
-        <div className="flex flex-col gap-2 sm:hidden">
-          {/* Dealer + Staff side by side */}
+      {/* Expanded filters */}
+      {open && (
+        <div className="flex flex-col gap-2">
           {(canViewDealers || canViewUsers) && (
             <div className="grid grid-cols-2 gap-2">
-              {dealerCombobox}
-              {staffCombobox}
+              {canViewDealers && (
+                <Combobox
+                  items={dealerItems}
+                  value={dealerId}
+                  onValueChange={onDealerChange}
+                  placeholder="All dealers"
+                  searchPlaceholder="Search dealers…"
+                  className="w-full"
+                  popoverClassName="min-w-64"
+                  wrap
+                />
+              )}
+              {canViewUsers && (
+                <Combobox
+                  items={staffItems}
+                  value={staffId}
+                  onValueChange={onStaffChange}
+                  placeholder="All staff"
+                  searchPlaceholder="Search staff…"
+                  className="w-full"
+                />
+              )}
             </div>
           )}
-          {dateRange}
+          <div className="flex items-center gap-1.5">
+            <DatePicker
+              value={dateFrom}
+              onChange={onDateFromChange}
+              placeholder="From date"
+              size="sm"
+              className="flex-1"
+            />
+            <span className="text-xs text-muted-foreground shrink-0">–</span>
+            <DatePicker
+              value={dateTo}
+              onChange={onDateToChange}
+              placeholder="To date"
+              size="sm"
+              minDate={dateFrom || undefined}
+              className="flex-1"
+            />
+          </div>
         </div>
       )}
-
-      {/* ── Desktop layout — unchanged ── */}
-      <div className="hidden sm:flex sm:flex-row sm:flex-wrap sm:items-center gap-2">
-        <div className="relative flex-1 min-w-0 sm:max-w-xs">
-          <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search by order, dealer, staff, center…"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-8 h-8 text-sm"
-          />
-        </div>
-        {dealerCombobox}
-        {staffCombobox}
-        {dateRange}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            className="h-7 text-xs text-muted-foreground"
-          >
-            <XIcon className="size-3.5" />
-            Reset
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

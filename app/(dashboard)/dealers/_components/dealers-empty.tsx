@@ -1,25 +1,26 @@
-import { StoreIcon, PlusIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { StoreIcon } from "lucide-react";
+import { EmptyState } from "@/components/shared/empty-state";
 
 interface DealersEmptyProps {
   hasFilters: boolean;
   canCreate: boolean;
   onAdd: () => void;
+  onReset?: () => void;
 }
 
-export function DealersEmpty({ hasFilters, canCreate, onAdd }: DealersEmptyProps) {
+export function DealersEmpty({ hasFilters, canCreate, onAdd, onReset }: DealersEmptyProps) {
+  const action = hasFilters && onReset
+    ? { label: "Reset Filters", onClick: onReset }
+    : !hasFilters && canCreate
+      ? { label: "Add first dealer", onClick: onAdd }
+      : undefined;
+
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-border py-16 text-muted-foreground">
-      <StoreIcon className="size-8 opacity-40" />
-      <p className="text-sm">
-        {hasFilters ? "No dealers match your filters" : "No dealers added yet"}
-      </p>
-      {!hasFilters && canCreate && (
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={onAdd}>
-          <PlusIcon className="size-4" />
-          Add first dealer
-        </Button>
-      )}
-    </div>
+    <EmptyState
+      icon={StoreIcon}
+      title={hasFilters ? "No dealers match your filters" : "No dealers added yet"}
+      description={hasFilters ? "Try adjusting your search or filters." : undefined}
+      action={action}
+    />
   );
 }

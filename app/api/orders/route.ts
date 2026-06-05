@@ -3,14 +3,19 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ordersQueries } from "@/lib/database/orders.queries";
 import { dealersQueries } from "@/lib/database/dealers.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
-import { PERMISSIONS } from "@/constants/roles.constants";
+import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { generateOrderNumber, getFinancialYear } from "@/lib/utils";
 import { ORDER_ELIGIBLE_STATUSES } from "@/constants/dealer-status.constants";
 
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, auth) => {
     const { searchParams } = req.nextUrl;
     const db = getSupabaseAdminClient();
+
+    // STAFF can only see orders they created — ignore any staffId from query params
+    const staffId = auth.profile.role === ROLES.STAFF
+      ? auth.profile.id
+      : (searchParams.get("staffId") ?? undefined);
 
     const statusesParam = searchParams.get("statuses");
     const result = await ordersQueries.getAll(db, {
@@ -20,7 +25,7 @@ export const GET = withAuth(
       status: searchParams.get("status") ?? undefined,
       statuses: statusesParam ? statusesParam.split(",") : undefined,
       dealerId: searchParams.get("dealerId") ?? undefined,
-      staffId: searchParams.get("staffId") ?? undefined,
+      staffId,
       dateFrom: searchParams.get("dateFrom") ?? undefined,
       dateTo: searchParams.get("dateTo") ?? undefined,
     });

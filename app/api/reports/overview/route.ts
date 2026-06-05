@@ -1,12 +1,20 @@
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { PERMISSIONS } from "@/constants/roles.constants";
+import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 
 const ORDER_STATUSES = ["PENDING", "APPROVED", "PARTIALLY_APPROVED", "HOLD", "CANCELLED", "GODOWN_DISPATCHED", "TRANSPORT_DISPATCHED", "SHIPPED"] as const;
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, _ctx, auth) => {
   try {
     const db = getSupabaseAdminClient();
+    const staffId = auth.profile.role === ROLES.STAFF ? auth.profile.id : null;
+
+    const activeOrderStatuses = ["PENDING", "APPROVED", "PARTIALLY_APPROVED", "GODOWN_DISPATCHED", "TRANSPORT_DISPATCHED", "SHIPPED"] as const;
+
+    const buildOrdersQuery = () => {
+      const q = db.from("orders").select("*", { count: "exact", head: true });
+      return staffId ? q.eq("staff_id", staffId) : q;
+    };
 
     const [
       statusCountResults,
@@ -16,23 +24,29 @@ export const GET = withAuth(async () => {
     ] = await Promise.all([
       Promise.all(
         ORDER_STATUSES.map(async (status) => {
-          const { count } = await db
-            .from("orders")
-            .select("*", { count: "exact", head: true })
-            .eq("status", status);
+          const { count } = await buildOrdersQuery().eq("status", status);
           return { status, count: count ?? 0 };
         })
       ),
-      db
-        .from("orders")
-        .select("id, status, dealer_id, dealer:dealers(id, name, territory), items:order_items(seed_id, quantity, unit, seed:seed_products(variety, pack_size, packets_per_bag, crop:crops(name)))")
-        .in("status", ["PENDING", "APPROVED", "PARTIALLY_APPROVED", "GODOWN_DISPATCHED", "TRANSPORT_DISPATCHED", "SHIPPED"]),
-      db
-        .from("seed_stock")
-        .select("seed_id, bag_stock, packet_stock, seed:seed_products!inner(variety, pack_size, packets_per_bag, crop:crops!inner(name))"),
-      db
-        .from("orders")
-        .select("dealer_id, status, dealer:dealers(id, name, territory)"),
+      (() => {
+        const q = db
+          .from("orders")
+          .select("id, status, dealer_id, dealer:dealers(id, name, territory), items:order_items(seed_id, quantity, unit, seed:seed_products(variety, pack_size, packets_per_bag, crop:crops(name)))")
+          .in("status", activeOrderStatuses);
+        return staffId ? q.eq("staff_id", staffId) : q;
+      })(),
+      // Inventory is admin-only — STAFF does not have STOCK_VIEW
+      staffId
+        ? Promise.resolve({ data: [] })
+        : db
+            .from("seed_stock")
+            .select("seed_id, bag_stock, packet_stock, seed:seed_products!inner(variety, pack_size, packets_per_bag, crop:crops!inner(name))"),
+      (() => {
+        const q = db
+          .from("orders")
+          .select("dealer_id, status, dealer:dealers(id, name, territory)");
+        return staffId ? q.eq("staff_id", staffId) : q;
+      })(),
     ]);
 
     // ── Orders by status ────────────────────────────────────────────────────
@@ -147,14 +161,17 @@ export const GET = withAuth(async () => {
     return apiSuccess({
       totalOrders,
       confirmedOrders,
-      totalInventoryPackets,
-      lowStockCount,
-      criticalStockCount,
       activeDealers,
       ordersByStatus,
-      inventory,
       topSeeds,
       topDealers,
+      // Stock inventory only returned for admin roles
+      ...(staffId === null && {
+        totalInventoryPackets,
+        lowStockCount,
+        criticalStockCount,
+        inventory,
+      }),
     });
   } catch (err) {
     console.error("GET /api/reports/overview error:", err);

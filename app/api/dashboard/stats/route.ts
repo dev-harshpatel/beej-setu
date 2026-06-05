@@ -1,30 +1,37 @@
 import { withAuth, apiSuccess } from "@/lib/api/auth-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
+import { PERMISSIONS, ROLES, ROLE_PERMISSIONS } from "@/constants/roles.constants";
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, _ctx, auth) => {
   const db = getSupabaseAdminClient();
+  const hasDashboardView = ROLE_PERMISSIONS[auth.profile.role]?.includes(PERMISSIONS.DASHBOARD_VIEW) ?? false;
 
   const [
-    { count: totalStaff },
-    { count: totalAdmins },
     { count: totalOrders },
     { count: pendingApprovals },
     { count: totalDealers },
+    { count: totalStaff },
+    { count: totalAdmins },
   ] = await Promise.all([
-    db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true),
-    db.from("profiles").select("*", { count: "exact", head: true }).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true),
     db.from("orders").select("*", { count: "exact", head: true }),
     db.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
     db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE").is("deleted_at", null),
+    hasDashboardView
+      ? db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true)
+      : Promise.resolve({ count: null }),
+    hasDashboardView
+      ? db.from("profiles").select("*", { count: "exact", head: true }).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true)
+      : Promise.resolve({ count: null }),
   ]);
 
   return apiSuccess({
     totalOrders:      totalOrders      ?? 0,
     pendingApprovals: pendingApprovals ?? 0,
     totalDealers:     totalDealers     ?? 0,
-    totalStaff:       totalStaff       ?? 0,
-    totalAdmins:      totalAdmins      ?? 0,
     salesReturns:     0,
+    ...(hasDashboardView && {
+      totalStaff:  totalStaff  ?? 0,
+      totalAdmins: totalAdmins ?? 0,
+    }),
   });
 }, PERMISSIONS.ORDERS_VIEW);

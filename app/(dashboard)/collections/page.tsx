@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { CollectionsPage } from "./_components/collections-page";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Collections",
 };
 
-export default function Collections() {
+export default async function Collections() {
+  await requirePermission(PERMISSIONS.COLLECTIONS_VIEW);
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

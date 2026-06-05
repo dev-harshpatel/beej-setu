@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { EyeIcon, EyeOffIcon, KeyRoundIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,31 +21,18 @@ interface ChangePasswordDialogProps {
 }
 
 export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswordDialogProps) {
-  const [existingPassword, setExistingPassword] = useState<string | null | "loading" | "unavailable">("loading");
-  const [newPassword, setNewPassword]           = useState("");
-  const [confirmPassword, setConfirmPassword]   = useState("");
-  const [showExisting, setShowExisting]         = useState(false);
-  const [showNew, setShowNew]                   = useState(false);
-  const [showConfirm, setShowConfirm]           = useState(false);
-  const [submitting, setSubmitting]             = useState(false);
-  const [error, setError]                       = useState<string | null>(null);
-  const [success, setSuccess]                   = useState(false);
-
-  useEffect(() => {
-    if (!open || !user) return;
-    setExistingPassword("loading");
-    fetch(`/api/users/${user.id}/password`)
-      .then((r) => r.json())
-      .then((json) => setExistingPassword(json.data?.password ?? "unavailable"))
-      .catch(() => setExistingPassword("unavailable"));
-  }, [open, user]);
+  const [newPassword, setNewPassword]         = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNew, setShowNew]                 = useState(false);
+  const [showConfirm, setShowConfirm]         = useState(false);
+  const [submitting, setSubmitting]           = useState(false);
+  const [error, setError]                     = useState<string | null>(null);
+  const [success, setSuccess]                 = useState(false);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
-      setExistingPassword("loading");
       setNewPassword("");
       setConfirmPassword("");
-      setShowExisting(false);
       setShowNew(false);
       setShowConfirm(false);
       setError(null);
@@ -100,30 +87,6 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
             <p className="text-sm text-muted-foreground">
               Setting a new password for <span className="font-medium text-foreground">{user.name}</span>
             </p>
-          )}
-          {user && (
-            <div className="mt-2 flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm">
-              <span className="text-accent-foreground/70 shrink-0">Current:</span>
-              <span className="font-mono font-medium text-accent-foreground tracking-wider flex-1">
-                {existingPassword === "loading"
-                  ? "—"
-                  : existingPassword === "unavailable"
-                  ? "Not on record"
-                  : showExisting
-                  ? existingPassword
-                  : "••••••••"}
-              </span>
-              {existingPassword !== "loading" && existingPassword !== "unavailable" && (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowExisting((v) => !v)}
-                  className="shrink-0 text-accent-foreground/60 hover:text-accent-foreground transition-colors"
-                >
-                  {showExisting ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
-                </button>
-              )}
-            </div>
           )}
         </DialogHeader>
 

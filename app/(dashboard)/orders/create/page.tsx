@@ -12,12 +12,15 @@ import {
 } from "@/components/ui/breadcrumb";
 import { ROUTES } from "@/constants/routes.constants";
 import { CreateOrderForm } from "./_components/create-order-form";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Create Order",
 };
 
-export default function CreateOrderPage() {
+export default async function CreateOrderPage() {
+  await requirePermission(PERMISSIONS.ORDERS_CREATE);
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

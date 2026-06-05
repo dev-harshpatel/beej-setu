@@ -2,7 +2,7 @@
 
 import { SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 export interface DealerFilters {
   search: string;
@@ -17,6 +17,12 @@ interface DealersFiltersProps {
   territories: string[];
   onChange: (filters: DealerFilters) => void;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE:     "Active",
+  SUSPENDED:  "Suspended",
+  TERMINATED: "Terminated",
+};
 
 export function DealersFilters({ searchInput, onSearchChange, filters, territories, onChange }: DealersFiltersProps) {
   function set(key: Exclude<keyof DealerFilters, "search">, value: string) {
@@ -37,33 +43,39 @@ export function DealersFilters({ searchInput, onSearchChange, filters, territori
           />
         </div>
       </div>
-      <div className="flex flex-col gap-1 w-full sm:w-44">
-        <label className="text-xs font-medium text-muted-foreground">Territory</label>
-        <Select value={filters.territory || "all"} onValueChange={(v) => set("territory", v === "all" ? "" : (v ?? ""))}>
-          <SelectTrigger className="h-9 w-full">
-            <SelectValue placeholder="All Territories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Territories</SelectItem>
-            {territories.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex flex-col gap-1 w-full sm:w-36">
-        <label className="text-xs font-medium text-muted-foreground">Status</label>
-        <Select value={filters.status || "all"} onValueChange={(v) => set("status", v === "all" ? "" : (v ?? ""))}>
-          <SelectTrigger className="h-9 w-full">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="SUSPENDED">Suspended</SelectItem>
-            <SelectItem value="TERMINATED">Terminated</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex gap-2 sm:contents">
+        <div className="flex flex-col gap-1 flex-1 sm:w-44 sm:flex-none">
+          <label className="text-xs font-medium text-muted-foreground">Territory</label>
+          <Select value={filters.territory || "all"} onValueChange={(v) => set("territory", v === "all" ? "" : (v ?? ""))}>
+            <SelectTrigger className="h-9 w-full">
+              <span className="flex-1 text-left text-sm truncate">
+                {filters.territory || "All Territories"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Territories</SelectItem>
+              {territories.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1 flex-1 sm:w-36 sm:flex-none">
+          <label className="text-xs font-medium text-muted-foreground">Status</label>
+          <Select value={filters.status || "all"} onValueChange={(v) => set("status", v === "all" ? "" : (v ?? ""))}>
+            <SelectTrigger className="h-9 w-full">
+              <span className="flex-1 text-left text-sm truncate">
+                {STATUS_LABELS[filters.status] ?? "All Status"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="SUSPENDED">Suspended</SelectItem>
+              <SelectItem value="TERMINATED">Terminated</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );

@@ -148,10 +148,10 @@ export function DashboardClient() {
   const displayStats = stats ?? EMPTY_STATS;
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0">
+    <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
       <StatsRow stats={displayStats} loading={statsLoading} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 lg:flex-1 lg:min-h-0 items-stretch">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 flex-1 min-h-0 items-stretch">
         {/* Pending Orders — 3/5 */}
         <div className="lg:col-span-3 rounded-xl border border-border bg-card flex flex-col min-h-0">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5 shrink-0">
@@ -178,7 +178,7 @@ export function DashboardClient() {
         </div>
 
         {/* Activity Feed — 2/5 */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col max-h-72 lg:max-h-none lg:min-h-0">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col min-h-0">
           <div className="border-b border-border px-4 py-3 sm:px-5 shrink-0">
             <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
             <p className="text-xs text-muted-foreground mt-0.5">

@@ -3,12 +3,15 @@ import type { Metadata } from "next";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { StockLedgerPage } from "./_components/stock-ledger-page";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Stock Ledger",
 };
 
-export default function Page() {
+export default async function Page() {
+  await requirePermission(PERMISSIONS.STOCK_MANAGE);
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

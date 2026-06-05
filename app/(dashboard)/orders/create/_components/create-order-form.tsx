@@ -41,6 +41,7 @@ type CropRowState = {
   quantity: number;
   seedName: string;
   cropName: string;
+  packetsPerBag: number;
 };
 
 const ORDER_UNITS = ["Bag", "Packet", "Box"] as const;
@@ -56,6 +57,7 @@ function newRow(): CropRowState {
     quantity: 1,
     seedName: "",
     cropName: "",
+    packetsPerBag: 0,
   };
 }
 
@@ -153,6 +155,7 @@ export function CreateOrderForm() {
     updateCropRow(rowId, {
       seedId: seed.id,
       seedName: `${seed.variety} — ${seed.pack_size}`,
+      packetsPerBag: seed.packets_per_bag,
     });
   }
 
@@ -194,6 +197,7 @@ export function CreateOrderForm() {
       seedName: r.seedName,
       unit: r.unit,
       quantity: r.quantity,
+      packetsPerBag: r.packetsPerBag,
     }));
 
   return (
@@ -530,6 +534,18 @@ export function CreateOrderForm() {
                     </div>
                   </div>
                 </div>
+
+                {/* Packet deduction hint — shown when a seed is selected and unit is Bag/Box */}
+                {row.seedId && row.packetsPerBag > 0 && row.unit !== "Packet" && (
+                  <p className="text-xs text-muted-foreground">
+                    {row.quantity} {row.unit}{row.quantity !== 1 ? "s" : ""} × {row.packetsPerBag} pkts/bag
+                    {" = "}
+                    <span className="font-semibold text-foreground">
+                      {row.quantity * row.packetsPerBag} packets
+                    </span>
+                    {" "}will be deducted from inventory
+                  </p>
+                )}
               </div>
             ))}
 

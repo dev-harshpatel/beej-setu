@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DealersPage } from "./_components/dealers-page";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const metadata: Metadata = {
   title: "Dealers",
 };
 
-export default function DealersRoute() {
+export default async function DealersRoute() {
+  await requirePermission(PERMISSIONS.DEALERS_VIEW);
   return (
     <div className="h-full flex flex-col">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">

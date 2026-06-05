@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
-import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon } from "lucide-react";
+import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,7 +47,7 @@ export function StaffOrders() {
   const [selectedOrder, setSelectedOrder] = useState<OrderWithRelations | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, refetch } = useQuery({
     queryKey: [
       ...QUERY_KEYS.ORDERS,
       { staffId: user?.id, page, pageSize: PAGE_SIZE, status: TAB_STATUS[activeTab] },
@@ -69,9 +69,10 @@ export function StaffOrders() {
     placeholderData: keepPreviousData,
   });
 
-  const orders  = data?.data ?? [];
-  const total   = data?.total ?? 0;
-  const loading = isFetching && !data;
+  const orders       = data?.data ?? [];
+  const total        = data?.total ?? 0;
+  const loading      = isFetching && !data;
+  const isRefreshing = isFetching && !!data;
 
   function handleTabChange(value: string) { setActiveTab(value as TabValue); setPage(1); }
 
@@ -87,13 +88,24 @@ export function StaffOrders() {
             {total > 0 ? `${total} order${total !== 1 ? "s" : ""}` : "Your placed orders"}
           </p>
         </div>
-        <Link
-          href={ROUTES.ORDERS.CREATE}
-          className={cn(buttonVariants({ size: "sm" }), "w-full sm:w-auto gap-1.5")}
-        >
-          <PlusIcon className="size-4" />
-          New Order
-        </Link>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline" size="sm"
+            onClick={() => refetch()}
+            disabled={isRefreshing || loading}
+            title="Refresh orders"
+          >
+            <RefreshCwIcon className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
+          </Button>
+          <Link
+            href={ROUTES.ORDERS.CREATE}
+            className={cn(buttonVariants({ size: "sm" }), "flex-1 sm:flex-none gap-1.5")}
+          >
+            <PlusIcon className="size-4" />
+            New Order
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}

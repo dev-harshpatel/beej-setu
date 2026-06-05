@@ -114,6 +114,19 @@ export const POST = withAuth(
       results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: true, message: "Created" });
     }
 
+    // Fire-and-forget audit log — types pending migration 021
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).from("bulk_upload_logs").insert({
+      upload_type:   "stock",
+      uploaded_by:   profile.id,
+      total_rows:    rows.length,
+      success_count: successCount,
+      failure_count: rows.length - successCount,
+      results,
+    }).then(({ error }: { error: { message: string } | null }) => {
+      if (error) console.error("bulk_upload_logs insert error:", error.message);
+    });
+
     return apiSuccess(
       { results, successCount, failureCount: rows.length - successCount },
       `${successCount} of ${rows.length} rows imported`,
