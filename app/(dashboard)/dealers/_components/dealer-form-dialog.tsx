@@ -101,7 +101,7 @@ export function DealerFormDialog({ open, onOpenChange, dealer, staffList, onSucc
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="contact">Contact *</Label>
+              <Label htmlFor="contact">Contact</Label>
               <Input id="contact" {...register("contact")} placeholder="9824011234" />
               {errors.contact && <p className="text-xs text-destructive">{errors.contact.message}</p>}
             </div>

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function OrdersPage() {
   return (
-    <>
+    <div className="h-full flex flex-col">
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -18,9 +18,9 @@ export default function OrdersPage() {
         />
         <h1 className="text-sm font-medium">Orders</h1>
       </header>
-      <div className="flex-1 overflow-hidden flex flex-col px-4 sm:px-5 pt-3 sm:pt-4">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 sm:px-5 pt-3 sm:pt-4">
         <OrdersRouter />
       </div>
-    </>
+    </div>
   );
 }

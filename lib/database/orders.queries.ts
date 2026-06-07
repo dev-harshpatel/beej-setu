@@ -161,6 +161,16 @@ export const ordersQueries = {
     return isNaN(serial) ? 1 : serial + 1;
   },
 
+  async delete(db: SupabaseClient<Database>, id: string): Promise<void> {
+    const { error } = await db.from("orders").delete().eq("id", id);
+    if (error) throw error;
+  },
+
+  async bulkDelete(db: SupabaseClient<Database>, ids: string[]): Promise<void> {
+    const { error } = await db.from("orders").delete().in("id", ids);
+    if (error) throw error;
+  },
+
   // Legacy alias kept so any other callers don't break during migration.
   async confirmWithStockDeduction(db: SupabaseClient<Database>, id: string) {
     return this.approveWithStockDeduction(db, id, "APPROVED");

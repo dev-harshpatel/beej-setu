@@ -58,8 +58,8 @@ export function CreateChallanDialog({
   const [transport, setTransport] = useState("");
   const [challanNumber, setChallanNumber] = useState("");
   const [lrNumber, setLrNumber] = useState("");
-  const [godownDate] = useState(new Date().toISOString().split("T")[0]);
-  const [transportDispatchDate, setTransportDispatchDate] = useState("");
+  const [godownDate, setGodownDate] = useState(new Date().toISOString().split("T")[0]);
+  const [transportDispatchDate, setTransportDispatchDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Existing challan for GODOWN_DISPATCHED orders
   const [existingChallan, setExistingChallan] = useState<ChallanRow | null>(null);
@@ -91,10 +91,12 @@ export function CreateChallanDialog({
     setError(null);
     setWhatsappMessage(null);
     setWhatsappType(null);
+    const today = new Date().toISOString().split("T")[0];
     setTransport(order.dealer?.default_transport ?? "");
     setChallanNumber(`DC-${order.order_number}`);
     setLrNumber("");
-    setTransportDispatchDate("");
+    setGodownDate(today);
+    setTransportDispatchDate(today);
     setExistingChallan(null);
     setBatchChangeReason("");
 
@@ -469,6 +471,22 @@ export function CreateChallanDialog({
                   readOnly={isUpdatingTransport}
                 />
               </div>
+
+              {/* Godown Dispatch Date — only on Godown Dispatch step */}
+              {isCreatingChallan && (
+                <div className="grid gap-1.5">
+                  <Label htmlFor="godown-date" className="text-xs">
+                    Godown Dispatch Date <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="godown-date"
+                    type="date"
+                    value={godownDate}
+                    onChange={(e) => setGodownDate(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              )}
 
               {/* LR Number — only on Transport Dispatch step */}
               {(isUpdatingTransport || existingChallan) && (

@@ -70,7 +70,7 @@ export const DELETE = withAuth(
       return apiError("Forbidden", 403);
     }
 
-    await dealersQueries.softDelete(db, id);
+    await dealersQueries.delete(db, id);
     return apiSuccess(null, "Dealer deleted");
   },
   PERMISSIONS.DEALERS_DELETE

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import type { ProfileRow } from "@/types/database.types";
+import { CurrentPasswordField } from "./current-password-field";
 
 interface ChangePasswordDialogProps {
   user: ProfileRow | null;
@@ -28,6 +29,7 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
   const [submitting, setSubmitting]           = useState(false);
   const [error, setError]                     = useState<string | null>(null);
   const [success, setSuccess]                 = useState(false);
+  const [resetKey, setResetKey]               = useState(0);
 
   function handleOpenChange(next: boolean) {
     if (!next) {
@@ -37,6 +39,7 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
       setShowConfirm(false);
       setError(null);
       setSuccess(false);
+      setResetKey((k) => k + 1);
     }
     onOpenChange(next);
   }
@@ -92,6 +95,10 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
 
         <form onSubmit={handleSubmit} noValidate>
           <FieldGroup className="py-2">
+            {user && (
+              <CurrentPasswordField key={`${resetKey}-${user.id}`} userId={user.id} />
+            )}
+
             <Field>
               <FieldLabel htmlFor="new-password">New Password</FieldLabel>
               <div className="relative">
@@ -108,7 +115,7 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowNew((v) => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-muted-foreground hover:text-foreground"
                 >
                   {showNew ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                 </button>
@@ -131,7 +138,7 @@ export function ChangePasswordDialog({ user, open, onOpenChange }: ChangePasswor
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-muted-foreground hover:text-foreground"
                 >
                   {showConfirm ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
                 </button>

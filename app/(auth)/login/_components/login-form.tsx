@@ -101,7 +101,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
               onClick={() => setShowPassword((v) => !v)}
               tabIndex={-1}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-muted-foreground hover:text-foreground"
             >
               {showPassword ? (
                 <EyeOffIcon className="size-4" />

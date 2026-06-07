@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DownloadIcon, RefreshCwIcon } from "lucide-react";
+import Link from "next/link";
+import { DownloadIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/constants/roles.constants";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -15,6 +19,7 @@ import {
 import { TablePagination } from "@/components/shared/table-pagination";
 import { OrdersDesktopFiltersBar, OrdersMobileFilters } from "./orders-filters";
 import { OrdersTable } from "./orders-table";
+import { OrderBulkDeleteDialog } from "./order-bulk-delete-dialog";
 import { OrderDetailDrawer } from "./order-detail-drawer";
 import { OrderConfirmModal } from "./order-confirm-modal";
 import { ORDER_STATUSES, type OrderStatusValue } from "@/constants/order-status.constants";
@@ -39,6 +44,8 @@ export function OrdersTabs() {
   const router = useRouter();
   const { user } = useAuthStore();
   const isDispatchStaff = user?.role === ROLES.DISPATCH_STAFF;
+  const { hasPermission } = usePermissions();
+  const canDelete = hasPermission(PERMISSIONS.ORDERS_DELETE);
 
   // ── Filter state ──────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabValue>("all");
@@ -58,6 +65,8 @@ export function OrdersTabs() {
   const [confirmOpen, setConfirmOpen]             = useState(false);
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   const [exporting, setExporting]                 = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds]   = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen]       = useState(false);
 
   const resolvedStatus: OrderStatusValue | undefined = isDispatchStaff
     ? DISPATCH_TAB_STATUS[activeTab as keyof typeof DISPATCH_TAB_STATUS]
@@ -65,6 +74,9 @@ export function OrdersTabs() {
 
   const resolvedStatuses: OrderStatusValue[] | undefined =
     isDispatchStaff && activeTab === "all" ? DISPATCH_VISIBLE_STATUSES : undefined;
+
+  // Clear selection when tab or filters change
+  useEffect(() => { setSelectedOrderIds(new Set()); }, [activeTab, dealerId, staffId, dateFrom, dateTo]);
 
   const { orders: rawOrders, total, loading, isRefreshing, invalidateOrders } = useOrdersData({
     page, pageSize, resolvedStatus, resolvedStatuses,
@@ -221,15 +233,24 @@ export function OrdersTabs() {
               <span className="hidden sm:inline">{isRefreshing ? "Refreshing…" : "Refresh"}</span>
             </Button>
             {!isDispatchStaff && (
-              <Button
-                variant="outline" size="sm"
-                onClick={handleExport}
-                disabled={exporting || total === 0}
-                className="hidden sm:flex shrink-0"
-              >
-                <DownloadIcon className="size-3.5" />
-                {exporting ? "Exporting…" : "Export Excel"}
-              </Button>
+              <>
+                <Link
+                  href={ROUTES.ORDERS.CREATE}
+                  className={cn(buttonVariants({ size: "sm" }), "gap-1.5 shrink-0")}
+                >
+                  <PlusIcon className="size-3.5" />
+                  <span className="hidden sm:inline">New Order</span>
+                </Link>
+                <Button
+                  variant="outline" size="sm"
+                  onClick={handleExport}
+                  disabled={exporting || total === 0}
+                  className="hidden sm:flex shrink-0"
+                >
+                  <DownloadIcon className="size-3.5" />
+                  {exporting ? "Exporting…" : "Export Excel"}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -247,13 +268,40 @@ export function OrdersTabs() {
         <OrdersMobileFilters {...filterProps} />
       </div>
 
+      {/* ── Bulk selection action bar ─────────────────────── */}
+      {canDelete && selectedOrderIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 mb-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm shrink-0">
+          <span className="font-medium text-destructive">
+            {selectedOrderIds.size} order{selectedOrderIds.size !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost" size="sm" className="h-7 text-xs"
+              onClick={() => setSelectedOrderIds(new Set())}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="destructive" size="sm" className="h-7 text-xs"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2Icon className="size-3.5" />
+              Delete {selectedOrderIds.size}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Scrollable middle: orders list ────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden md:flex md:flex-col">
         <OrdersTable
           orders={orders}
           loading={loading}
           isDispatchStaff={isDispatchStaff}
           processingOrderId={processingOrderId}
+          canDelete={canDelete}
+          selectedIds={selectedOrderIds}
+          onSelectionChange={setSelectedOrderIds}
           onEdit={handleEdit}
           onApprove={handleApprove}
           onHold={handleHold}
@@ -288,6 +336,15 @@ export function OrdersTabs() {
         onApprove={(order) => { setDrawerOpen(false); setConfirmOrder(order); setConfirmOpen(true); }}
         onCreateChallan={(order) => { setDrawerOpen(false); handleCreateChallan(order); }}
         onRefresh={invalidateOrders}
+      />
+
+      {/* Bulk delete modal */}
+      <OrderBulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedOrderIds.size}
+        ids={[...selectedOrderIds]}
+        onSuccess={() => { invalidateOrders(); setSelectedOrderIds(new Set()); setBulkDeleteOpen(false); }}
       />
 
       {/* Batch approval modal */}

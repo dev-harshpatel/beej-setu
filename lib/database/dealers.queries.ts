@@ -15,7 +15,6 @@ export const dealersQueries = {
       .from("dealers")
       .select("*, staff:profiles(id, name, username)")
       .eq("id", id)
-      .is("deleted_at", null)
       .single();
     if (error) throw error;
     return data as DealerWithStaffRow;
@@ -32,8 +31,7 @@ export const dealersQueries = {
 
     let query = db
       .from("dealers")
-      .select("*, staff:profiles(id, name, username)", { count: "exact" })
-      .is("deleted_at", null);
+      .select("*, staff:profiles(id, name, username)", { count: "exact" });
 
     if (params?.search) {
       query = query.or(
@@ -91,11 +89,13 @@ export const dealersQueries = {
     return data as DealerWithStaffRow;
   },
 
-  async softDelete(db: SupabaseClient<Database>, id: string): Promise<void> {
-    const { error } = await db
-      .from("dealers")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
+  async delete(db: SupabaseClient<Database>, id: string): Promise<void> {
+    const { error } = await db.from("dealers").delete().eq("id", id);
+    if (error) throw error;
+  },
+
+  async bulkDelete(db: SupabaseClient<Database>, ids: string[]): Promise<void> {
+    const { error } = await db.from("dealers").delete().in("id", ids);
     if (error) throw error;
   },
 };

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PUBLIC_ROUTES } from "@/constants/routes.constants";
 import { ROUTES } from "@/constants/routes.constants";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   let response = NextResponse.next({ request });

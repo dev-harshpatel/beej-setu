@@ -5,9 +5,10 @@ export const createDealerSchema = z.object({
   staffId: z.string().uuid("Invalid staff ID").nullable().optional(),
   contact: z
     .string()
-    .min(10, "Contact must be at least 10 digits")
-    .max(15)
-    .regex(/^[0-9+\-\s]+$/, "Enter a valid phone number"),
+    .max(200, "Contact is too long")
+    .regex(/^[0-9+\-\s(),/]+$/, "Only digits, +, -, spaces, commas and () allowed")
+    .optional()
+    .nullable(),
   defaultTransport: z.string().max(100).nullable().optional(),
   defaultDeliveryInstruction: z.string().max(500).nullable().optional(),
   deliveryInstruction: z.string().max(500).nullable().optional(),

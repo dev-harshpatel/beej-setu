@@ -19,7 +19,7 @@ const SAMPLE_ROWS = [
   ["Rajesh Agro",         "9712345678", "Kutch",        "",                ""],
 ];
 
-const REQUIRED_HEADERS = ["name", "contact"];
+const REQUIRED_HEADERS = ["name"];
 const ALL_HEADERS      = ["name", "contact", "territory", "default_transport", "notes"];
 
 interface ParsedRow extends DealerBulkUploadRow {
@@ -102,8 +102,7 @@ export function DealerUploadDialog({ open, onOpenChange, onSuccess }: DealerUplo
           const default_transport = String(r["default_transport"] ?? "").trim();
           const notes             = String(r["notes"]             ?? "").trim();
 
-          if (!name)    errors.push("name required");
-          if (!contact) errors.push("contact required");
+          if (!name) errors.push("name required");
 
           return {
             _rowIndex: idx + 2,
@@ -173,8 +172,8 @@ export function DealerUploadDialog({ open, onOpenChange, onSuccess }: DealerUplo
             <div>
               <p className="text-sm font-medium">Step 1 — Download the sample file</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Required columns: <span className="font-mono">name, contact</span>
-                {" · "}Optional: <span className="font-mono">territory, default_transport, notes</span>
+                Required columns: <span className="font-mono">name</span>
+                {" · "}Optional: <span className="font-mono">contact, territory, default_transport, notes</span>
               </p>
             </div>
             <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={downloadSample}>

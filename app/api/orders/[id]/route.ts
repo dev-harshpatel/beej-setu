@@ -19,6 +19,23 @@ export const GET = withAuth(
   PERMISSIONS.ORDERS_VIEW
 );
 
+export const DELETE = withAuth(
+  async (_req: NextRequest, ctx, auth) => {
+    const { id } = await ctx.params;
+    const db = getSupabaseAdminClient();
+
+    const existing = await ordersQueries.getById(db, id);
+    if (!existing) return apiError("Order not found", 404);
+    if (auth.profile.role === ROLES.STAFF && existing.staff_id !== auth.profile.id) {
+      return apiError("Forbidden", 403);
+    }
+
+    await ordersQueries.delete(db, id);
+    return apiSuccess(null, "Order deleted");
+  },
+  PERMISSIONS.ORDERS_DELETE
+);
+
 export const PATCH = withAuth(
   async (req: NextRequest, ctx, auth) => {
     try {

@@ -9,6 +9,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderStatusBadge } from "./order-status-badge";
 import {
@@ -34,6 +35,9 @@ interface OrderCardProps {
   order: OrderWithRelations;
   isDispatchStaff?: boolean;
   processingOrderId?: string | null;
+  canDelete?: boolean;
+  selected?: boolean;
+  onToggle?: (checked: boolean) => void;
   onEdit: (order: OrderWithRelations) => void;
   onApprove: (order: OrderWithRelations) => void;
   onHold: (order: OrderWithRelations) => void;
@@ -45,6 +49,9 @@ export function OrderCard({
   order,
   isDispatchStaff = false,
   processingOrderId,
+  canDelete,
+  selected = false,
+  onToggle,
   onEdit,
   onApprove,
   onHold,
@@ -72,9 +79,14 @@ export function OrderCard({
 
   return (
     <div className={`rounded-lg border border-border border-l-4 ${borderClass} bg-card p-3 flex flex-col gap-2`}>
-      {/* Row 1: order# · date + status badge */}
+      {/* Row 1: [checkbox] order# · date + status badge */}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-semibold text-foreground truncate">
+        {canDelete && onToggle && (
+          <span onClick={(e) => e.stopPropagation()}>
+            <Checkbox checked={selected} onCheckedChange={onToggle} />
+          </span>
+        )}
+        <span className="font-mono text-xs font-semibold text-foreground truncate flex-1">
           {order.order_number}
           <span className="font-sans font-normal text-muted-foreground"> · {date}</span>
         </span>

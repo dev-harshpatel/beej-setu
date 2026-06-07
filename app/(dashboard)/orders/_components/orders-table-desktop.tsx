@@ -7,14 +7,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { OrderStatusBadge } from "./order-status-badge";
 import {
   ORDER_STATUSES,
@@ -28,6 +21,9 @@ interface OrdersTableDesktopProps {
   orders: OrderWithRelations[];
   isDispatchStaff: boolean;
   processingOrderId?: string | null;
+  canDelete?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
   onEdit: (order: OrderWithRelations) => void;
   onApprove: (order: OrderWithRelations) => void;
   onHold: (order: OrderWithRelations) => void;
@@ -35,38 +31,69 @@ interface OrdersTableDesktopProps {
   onCreateChallan: (order: OrderWithRelations) => void;
 }
 
+const th = "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground";
+const td = "p-2 align-middle whitespace-nowrap";
+const tr = "border-b transition-colors hover:bg-muted/50";
+
 export function OrdersTableDesktop({
-  orders,
-  isDispatchStaff,
-  processingOrderId,
-  onEdit,
-  onApprove,
-  onHold,
-  onCancel,
-  onCreateChallan,
+  orders, isDispatchStaff, processingOrderId,
+  canDelete, selectedIds, onSelectionChange,
+  onEdit, onApprove, onHold, onCancel, onCreateChallan,
 }: OrdersTableDesktopProps) {
+  const showCheckboxes = canDelete && !!onSelectionChange;
+
+  const allPageIds = orders.map((o) => o.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every((id) => selectedIds?.has(id));
+  const someSelected = allPageIds.some((id) => selectedIds?.has(id));
+
+  function toggleAll(checked: boolean) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (checked) allPageIds.forEach((id) => next.add(id));
+    else         allPageIds.forEach((id) => next.delete(id));
+    onSelectionChange(next);
+  }
+
+  function toggleOne(id: string, checked: boolean) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (checked) next.add(id); else next.delete(id);
+    onSelectionChange(next);
+  }
+
   return (
-    <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Dealer</TableHead>
+    <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-border">
+      <table className="w-full caption-bottom text-sm">
+        <thead className="sticky top-0 z-10 bg-background [&_tr]:border-b">
+          <tr className="border-b">
+            {showCheckboxes && (
+              <th className={`${th} w-8 pl-3`}>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected && !allSelected}
+                    onCheckedChange={toggleAll}
+                  />
+                </span>
+              </th>
+            )}
+            <th className={th}>Order ID</th>
+            <th className={th}>Dealer</th>
             {isDispatchStaff ? (
-              <TableHead className="hidden md:table-cell">Location</TableHead>
+              <th className={`${th} hidden md:table-cell`}>Location</th>
             ) : (
               <>
-                <TableHead className="hidden md:table-cell">Staff</TableHead>
-                <TableHead className="hidden lg:table-cell">Center</TableHead>
+                <th className={`${th} hidden md:table-cell`}>Staff</th>
+                <th className={`${th} hidden lg:table-cell`}>Center</th>
               </>
             )}
-            <TableHead className="hidden sm:table-cell">Date</TableHead>
-            <TableHead className="hidden sm:table-cell">Items</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+            <th className={`${th} hidden sm:table-cell`}>Date</th>
+            <th className={`${th} hidden sm:table-cell`}>Items</th>
+            <th className={th}>Status</th>
+            <th className={`${th} text-right`}>Actions</th>
+          </tr>
+        </thead>
+        <tbody className="[&_tr:last-child]:border-0">
           {orders.map((order) => {
             const status = order.status as OrderStatusValue;
             const isPending           = status === ORDER_STATUSES.PENDING;
@@ -78,42 +105,46 @@ export function OrdersTableDesktop({
               transportEligible ||
               status === ORDER_STATUSES.TRANSPORT_DISPATCHED ||
               status === ORDER_STATUSES.SHIPPED;
+            const isChecked = selectedIds?.has(order.id) ?? false;
 
             return (
-              <TableRow key={order.id}>
-                <TableCell className="font-mono text-xs font-medium">
-                  {order.order_number}
-                </TableCell>
-                <TableCell className="font-medium">{order.dealer?.name ?? "—"}</TableCell>
+              <tr key={order.id} className={tr}>
+                {showCheckboxes && (
+                  <td className={`${td} w-8 pl-3`} onClick={(e) => e.stopPropagation()}>
+                    <Checkbox checked={isChecked} onCheckedChange={(c) => toggleOne(order.id, c)} />
+                  </td>
+                )}
+                <td className={`${td} font-mono text-xs font-medium`}>{order.order_number}</td>
+                <td className={`${td} font-medium`}>{order.dealer?.name ?? "—"}</td>
 
                 {isDispatchStaff ? (
-                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                  <td className={`${td} hidden md:table-cell text-sm text-muted-foreground`}>
                     {order.center ?? "—"}
-                  </TableCell>
+                  </td>
                 ) : (
                   <>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                    <td className={`${td} hidden md:table-cell text-sm text-muted-foreground`}>
                       {order.staff?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                    </td>
+                    <td className={`${td} hidden lg:table-cell text-sm text-muted-foreground`}>
                       {order.dealer?.territory ?? "—"}
-                    </TableCell>
+                    </td>
                   </>
                 )}
 
-                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
+                <td className={`${td} hidden sm:table-cell text-sm text-muted-foreground`}>
                   {new Date(order.created_at).toLocaleDateString("en-IN", {
                     day: "2-digit", month: "short", year: "numeric",
                   })}
-                </TableCell>
-                <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                </td>
+                <td className={`${td} hidden sm:table-cell text-sm text-muted-foreground`}>
                   {order.items?.length ?? 0}
-                </TableCell>
-                <TableCell>
+                </td>
+                <td className={td}>
                   <OrderStatusBadge status={status} />
-                </TableCell>
+                </td>
 
-                <TableCell>
+                <td className={td}>
                   <div className="flex items-center justify-end gap-1.5">
                     {isPending && (
                       <>
@@ -127,22 +158,17 @@ export function OrdersTableDesktop({
                           {isProcessing ? "…" : "Approve"}
                         </Button>
                         <Button
-                          size="sm" variant="outline"
-                          className="h-7 text-xs"
-                          disabled={isProcessing}
-                          onClick={() => onHold(order)}
+                          size="sm" variant="outline" className="h-7 text-xs"
+                          disabled={isProcessing} onClick={() => onHold(order)}
                         >
-                          <PauseCircleIcon className="size-3.5" />
-                          Hold
+                          <PauseCircleIcon className="size-3.5" />Hold
                         </Button>
                         <Button
                           size="sm" variant="outline"
                           className="h-7 text-xs text-destructive hover:text-destructive"
-                          disabled={isProcessing}
-                          onClick={() => onCancel(order)}
+                          disabled={isProcessing} onClick={() => onCancel(order)}
                         >
-                          <XCircleIcon className="size-3.5" />
-                          Cancel
+                          <XCircleIcon className="size-3.5" />Cancel
                         </Button>
                       </>
                     )}
@@ -153,8 +179,7 @@ export function OrdersTableDesktop({
                         className="h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
                         onClick={() => onCreateChallan(order)}
                       >
-                        <ClipboardListIcon className="size-3.5" />
-                        Challan
+                        <ClipboardListIcon className="size-3.5" />Challan
                       </Button>
                     )}
 
@@ -164,8 +189,7 @@ export function OrdersTableDesktop({
                         className="h-7 text-xs bg-accent text-accent-foreground hover:bg-accent/80 border-0"
                         onClick={() => onCreateChallan(order)}
                       >
-                        <ClipboardListIcon className="size-3.5" />
-                        Challan
+                        <ClipboardListIcon className="size-3.5" />Challan
                       </Button>
                     )}
 
@@ -175,28 +199,25 @@ export function OrdersTableDesktop({
                         className="h-7 text-xs bg-purple-600 text-white hover:bg-purple-700 border-0"
                         onClick={() => onCreateChallan(order)}
                       >
-                        <SendIcon className="size-3.5" />
-                        Transport Dispatch
+                        <SendIcon className="size-3.5" />Transport Dispatch
                       </Button>
                     )}
 
                     {!isDispatchStaff && (
                       <Button
-                        size="sm" variant="outline"
-                        className="h-7 text-xs"
+                        size="sm" variant="outline" className="h-7 text-xs"
                         onClick={() => onEdit(order)}
                       >
-                        <PencilIcon className="size-3.5" />
-                        Edit
+                        <PencilIcon className="size-3.5" />Edit
                       </Button>
                     )}
                   </div>
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             );
           })}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
     </div>
   );
 }

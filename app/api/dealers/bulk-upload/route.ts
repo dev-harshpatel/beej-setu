@@ -5,7 +5,7 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 
 export interface DealerBulkUploadRow {
   name: string;
-  contact: string;
+  contact?: string;
   territory?: string;
   default_transport?: string;
   notes?: string;
@@ -14,7 +14,7 @@ export interface DealerBulkUploadRow {
 export interface DealerBulkUploadResult {
   row: number;
   name: string;
-  contact: string;
+  contact?: string;
   success: boolean;
   message: string;
 }
@@ -44,14 +44,10 @@ export const POST = withAuth(
         results.push({ row: rowNum, name: row.name ?? "", contact: row.contact ?? "", success: false, message: "name is required" });
         continue;
       }
-      if (!row.contact?.trim()) {
-        results.push({ row: rowNum, name: row.name, contact: row.contact ?? "", success: false, message: "contact is required" });
-        continue;
-      }
 
       const { error: insertErr } = await db.from("dealers").insert({
         name:              row.name.trim(),
-        contact:           row.contact.trim(),
+        contact:           row.contact?.trim()          || null,
         territory:         row.territory?.trim()          || null,
         default_transport: row.default_transport?.trim()  || null,
         notes:             row.notes?.trim()              || null,

@@ -79,7 +79,7 @@ export function StaffOrders() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="h-full overflow-y-auto flex flex-col gap-4 pb-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -141,9 +141,9 @@ export function StaffOrders() {
           </div>
 
           {/* Desktop skeleton */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+          <div className="hidden md:block rounded-lg border border-border">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Dealer</TableHead>
@@ -223,9 +223,9 @@ export function StaffOrders() {
           </div>
 
           {/* Desktop table — unchanged */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+          <div className="hidden md:block rounded-lg border border-border">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Dealer</TableHead>

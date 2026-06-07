@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { Trash2Icon } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAuth } from "@/hooks/use-auth";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
+import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { DealersHeader } from "./dealers-header";
 import { DealersFilters, type DealerFilters } from "./dealers-filters";
@@ -13,6 +15,7 @@ import { DealersTable } from "./dealers-table";
 import { DealersEmpty } from "./dealers-empty";
 import { DealerFormDialog } from "./dealer-form-dialog";
 import { DealerDeleteDialog } from "./dealer-delete-dialog";
+import { DealerBulkDeleteDialog } from "./dealer-bulk-delete-dialog";
 import { DealerUploadDialog } from "./dealer-upload-dialog";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { DealerWithStaffRow } from "@/lib/database/dealers.queries";
@@ -21,6 +24,7 @@ import type { ProfileRow } from "@/types/database.types";
 const DEFAULT_PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 
 export function DealersPage() {
+  const queryClient       = useQueryClient();
   const { user }          = useAuth();
   const isStaff           = user?.role === ROLES.STAFF;
   const { hasPermission } = usePermissions();
@@ -39,12 +43,14 @@ export function DealersPage() {
   const [deleteDealer, setDeleteDealer] = useState<DealerWithStaffRow | null>(null);
   const [uploadOpen, setUploadOpen]     = useState(false);
 
-  // Reset to page 1 on search change (instant, no debounce)
-  useEffect(() => { setPage(1); }, [searchInput]);
+  const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // ── Dealers list — fetch all, filter client-side ──────────
-  // No search param: search is instant and zero round-trips.
-  // Realtime invalidation automatically refetches when the dealers table changes.
+  // Reset to page 1 on search change
+  useEffect(() => { setPage(1); }, [searchInput]);
+  // Clear selection when filters change
+  useEffect(() => { setSelectedIds(new Set()); }, [filters, searchInput]);
+
   const { data: dealersData, isFetching: dealersFetching } = useQuery({
     queryKey: [
       ...QUERY_KEYS.DEALERS,
@@ -65,19 +71,17 @@ export function DealersPage() {
   const allDealers = useMemo(() => dealersData?.data ?? [], [dealersData]);
   const loading    = dealersFetching && !dealersData;
 
-  // Client-side search filter (instant)
   const filteredDealers = useMemo(() => {
     const q = searchInput.trim().toLowerCase();
     if (!q) return allDealers;
     return allDealers.filter((d) =>
       d.name.toLowerCase().includes(q) ||
-      d.contact.includes(q) ||
+      d.contact?.includes(q) ||
       d.territory?.toLowerCase().includes(q) ||
       d.staff?.name.toLowerCase().includes(q),
     );
   }, [allDealers, searchInput]);
 
-  // Client-side pagination on filtered results
   const total      = filteredDealers.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const dealers    = useMemo(
@@ -90,7 +94,6 @@ export function DealersPage() {
     [allDealers],
   );
 
-  // ── Staff list (for form dropdowns) ──────────────────────
   const { data: staffListData } = useQuery({
     queryKey: ["staff-list"],
     queryFn: async () => {
@@ -105,7 +108,6 @@ export function DealersPage() {
 
   const hasFilters = !!(searchInput || filters.status || filters.territory);
 
-  // ── Handlers ──────────────────────────────────────────────
   function handleFiltersChange(next: DealerFilters) {
     setFilters((prev) =>
       prev.status === next.status && prev.territory === next.territory ? prev : next,
@@ -121,9 +123,15 @@ export function DealersPage() {
     setPageSize(DEFAULT_PAGE_SIZE);
   }
 
+  function invalidateDealers() {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DEALERS });
+  }
+
   function openAdd()                          { setEditDealer(null); setFormOpen(true); }
   function openEdit(d: DealerWithStaffRow)    { setEditDealer(d); setFormOpen(true); }
   function openDelete(d: DealerWithStaffRow)  { setDeleteDealer(d); setDeleteOpen(true); }
+
+  const selectedCount = selectedIds.size;
 
   return (
     <div className="flex flex-col h-full">
@@ -140,6 +148,30 @@ export function DealersPage() {
         />
       </div>
 
+      {/* ── Bulk selection action bar ─────────────────────── */}
+      {canDelete && selectedCount > 0 && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 mb-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm shrink-0">
+          <span className="font-medium text-destructive">
+            {selectedCount} dealer{selectedCount !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost" size="sm" className="h-7 text-xs"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="destructive" size="sm" className="h-7 text-xs"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2Icon className="size-3.5" />
+              Delete {selectedCount}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Scrollable middle: table or empty state ────────── */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {!loading && dealers.length === 0 ? (
@@ -153,6 +185,8 @@ export function DealersPage() {
             canDelete={canDelete}
             onEdit={openEdit}
             onDelete={openDelete}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
           />
         )}
       </div>
@@ -175,20 +209,27 @@ export function DealersPage() {
       <DealerUploadDialog
         open={uploadOpen}
         onOpenChange={setUploadOpen}
-        onSuccess={() => setUploadOpen(false)}
+        onSuccess={() => { invalidateDealers(); setUploadOpen(false); }}
       />
       <DealerFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
         dealer={editDealer}
         staffList={staffList}
-        onSuccess={() => setFormOpen(false)}
+        onSuccess={() => { invalidateDealers(); setFormOpen(false); }}
       />
       <DealerDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         dealer={deleteDealer}
-        onSuccess={() => { setDeleteOpen(false); setDeleteDealer(null); }}
+        onSuccess={() => { invalidateDealers(); setDeleteOpen(false); setDeleteDealer(null); }}
+      />
+      <DealerBulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedCount}
+        ids={[...selectedIds]}
+        onSuccess={() => { invalidateDealers(); setSelectedIds(new Set()); setBulkDeleteOpen(false); }}
       />
     </div>
   );

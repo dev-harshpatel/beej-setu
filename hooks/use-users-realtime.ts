@@ -16,6 +16,7 @@ export function useUsersRealtime() {
       supabase
         .from("profiles")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .then(({ data }) => {
           setUsers((data as ProfileRow[]) ?? []);
@@ -30,10 +31,13 @@ export function useUsersRealtime() {
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles" },
         (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            upsertUser(payload.new as ProfileRow);
-          } else if (payload.eventType === "DELETE") {
+          if (payload.eventType === "DELETE") {
             removeUser((payload.old as { id: string }).id);
+          } else if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+            const row = payload.new as ProfileRow;
+            // Treat soft-deleted rows the same as hard deletes
+            if (row.deleted_at) removeUser(row.id);
+            else upsertUser(row);
           }
         }
       )

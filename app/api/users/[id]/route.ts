@@ -49,3 +49,30 @@ export const PATCH = withAuth(
   },
   PERMISSIONS.USERS_EDIT
 );
+
+export const DELETE = withAuth(
+  async (_req: NextRequest, ctx, auth) => {
+    const { id } = await ctx.params;
+    const db = getSupabaseAdminClient();
+
+    const target = await usersQueries.getById(db, id);
+    if (!target) return apiError("User not found", 404);
+
+    if (target.id === auth.profile.id) {
+      return apiError("You cannot delete your own account", 400);
+    }
+
+    const allowedTargetRoles: Role[] =
+      auth.profile.role === ROLES.SUPER_ADMIN
+        ? [ROLES.ADMIN, ROLES.STAFF, ROLES.DISPATCH_STAFF]
+        : STAFF_ROLES;
+
+    if (!allowedTargetRoles.includes(target.role as Role)) {
+      return apiError("You do not have permission to delete this user", 403);
+    }
+
+    await usersQueries.softDelete(db, id);
+    return apiSuccess(null, "User deleted");
+  },
+  PERMISSIONS.USERS_DELETE
+);

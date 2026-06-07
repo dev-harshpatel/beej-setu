@@ -111,7 +111,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
           return (
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
-                render={<Link href={item.href} />}
+                render={<Link href={item.href} prefetch={!isActive} />}
                 isActive={isActive}
                 tooltip={item.label}
               >

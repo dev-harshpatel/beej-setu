@@ -36,6 +36,7 @@ export interface Database {
           encrypted_password: string | null;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
         };
         Insert: {
           id: string;
@@ -49,6 +50,7 @@ export interface Database {
           encrypted_password?: string | null;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
@@ -59,7 +61,7 @@ export interface Database {
           id: string;
           name: string;
           staff_id: string | null;
-          contact: string;
+          contact: string | null;
           default_transport: string | null;
           default_delivery_instruction: string | null;
           delivery_instruction: string | null;
@@ -68,13 +70,12 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
-          deleted_at: string | null;
         };
         Insert: {
           id?: string;
           name: string;
           staff_id?: string | null;
-          contact: string;
+          contact?: string | null;
           default_transport?: string | null;
           default_delivery_instruction?: string | null;
           delivery_instruction?: string | null;
@@ -83,7 +84,6 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
-          deleted_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["dealers"]["Insert"]>;
         Relationships: [
@@ -151,7 +151,7 @@ export interface Database {
         Row: {
           id: string;
           order_number: string;
-          dealer_id: string;
+          dealer_id: string | null;
           staff_id: string;
           center: string | null;
           transport_name: string | null;
@@ -166,7 +166,7 @@ export interface Database {
         Insert: {
           id?: string;
           order_number: string;
-          dealer_id: string;
+          dealer_id?: string | null;
           staff_id: string;
           center?: string | null;
           transport_name?: string | null;
@@ -319,7 +319,7 @@ export interface Database {
       collections: {
         Row: {
           id: string;
-          dealer_id: string;
+          dealer_id: string | null;
           staff_id: string;
           payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
           amount: number;
@@ -330,7 +330,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          dealer_id: string;
+          dealer_id?: string | null;
           staff_id: string;
           payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
           amount: number;

@@ -15,7 +15,7 @@ export const GET = withAuth(async (_req, _ctx, auth) => {
   ] = await Promise.all([
     db.from("orders").select("*", { count: "exact", head: true }),
     db.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
-    db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE").is("deleted_at", null),
+    db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE"),
     hasDashboardView
       ? db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true)
       : Promise.resolve({ count: null }),

@@ -187,6 +187,40 @@ export function buildTransportDispatchWhatsAppMessage(params: TransportDispatchS
   return lines.join("\n");
 }
 
+// ── Collection (Staff → records payment) ─────────────────────────────────────
+
+export interface CollectionShareParams {
+  dealerName: string;
+  amount: number;
+  paymentMode: string;
+  collectionDate: string;
+  staffName?: string;
+  notes?: string;
+}
+
+export function buildCollectionWhatsAppMessage(params: CollectionShareParams): string {
+  const { dealerName, amount, paymentMode, collectionDate, staffName, notes } = params;
+  const lines: string[] = [];
+
+  const modeLabel: Record<string, string> = {
+    CASH: "Cash", BANK_TRANSFER: "Bank Transfer", UPI: "UPI", CHEQUE: "Cheque",
+  };
+
+  lines.push("*Collection Recorded*");
+  lines.push(`Date: ${_fmt(collectionDate)}`);
+  if (staffName) lines.push(`*Recorded by:* ${staffName}`);
+  lines.push("");
+  lines.push(`*Dealer:* ${dealerName}`);
+  lines.push(`*Amount:* ₹${amount.toLocaleString("en-IN")}`);
+  lines.push(`*Mode:* ${modeLabel[paymentMode] ?? paymentMode}`);
+  if (notes) {
+    lines.push("");
+    lines.push(`*Notes:* ${notes}`);
+  }
+
+  return lines.join("\n");
+}
+
 // ── Shared ────────────────────────────────────────────────────────────────────
 
 export function buildWhatsAppUrl(message: string): string {

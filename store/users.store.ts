@@ -10,6 +10,7 @@ interface UsersState {
   setInitialized: (initialized: boolean) => void;
   upsertUser: (user: ProfileRow) => void;
   removeUser: (id: string) => void;
+  bulkRemoveUsers: (ids: string[]) => void;
 }
 
 export const useUsersStore = create<UsersState>((set) => ({
@@ -30,4 +31,6 @@ export const useUsersStore = create<UsersState>((set) => ({
     }),
   removeUser: (id) =>
     set((state) => ({ users: state.users.filter((u) => u.id !== id) })),
+  bulkRemoveUsers: (ids) =>
+    set((state) => ({ users: state.users.filter((u) => !ids.includes(u.id)) })),
 }));

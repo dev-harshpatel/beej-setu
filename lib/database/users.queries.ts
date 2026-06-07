@@ -3,7 +3,7 @@ import type { Database, ProfileRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
 
 // Never include encrypted_password — it must only be accessed via the dedicated server-side endpoint.
-const PROFILE_COLUMNS = "id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at";
+const PROFILE_COLUMNS = "id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at, deleted_at";
 
 export const usersQueries = {
   async getById(
@@ -14,6 +14,7 @@ export const usersQueries = {
       .from("profiles")
       .select(PROFILE_COLUMNS)
       .eq("id", id)
+      .is("deleted_at", null)
       .single();
     if (error) throw error;
     return data as ProfileRow;
@@ -28,7 +29,10 @@ export const usersQueries = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = db.from("profiles").select(PROFILE_COLUMNS, { count: "exact" });
+    let query = db
+      .from("profiles")
+      .select(PROFILE_COLUMNS, { count: "exact" })
+      .is("deleted_at", null);
 
     if (params?.search) {
       query = query.ilike("name", `%${params.search}%`);
@@ -61,5 +65,21 @@ export const usersQueries = {
       .single();
     if (error) throw error;
     return data as ProfileRow;
+  },
+
+  async softDelete(db: SupabaseClient<Database>, id: string): Promise<void> {
+    const { error } = await db
+      .from("profiles")
+      .update({ deleted_at: new Date().toISOString(), is_active: false })
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  async bulkSoftDelete(db: SupabaseClient<Database>, ids: string[]): Promise<void> {
+    const { error } = await db
+      .from("profiles")
+      .update({ deleted_at: new Date().toISOString(), is_active: false })
+      .in("id", ids);
+    if (error) throw error;
   },
 };

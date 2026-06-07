@@ -3,16 +3,21 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2Icon } from "lucide-react";
+import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
+import { WhatsAppSharePanel } from "@/app/(dashboard)/orders/_components/whatsapp-share-panel";
+import { buildCollectionWhatsAppMessage } from "@/lib/whatsapp";
 import { CollectionsTable } from "./collections-table";
 import { CollectionsEditDialog } from "./collections-edit-dialog";
 import { CollectionsDeleteDialog } from "./collections-delete-dialog";
@@ -41,6 +46,9 @@ export function CollectionsPage() {
   const [collectionDate, setCollectionDate] = useState(TODAY);
   const [notes,          setNotes]         = useState("");
   const [formError,      setFormError]     = useState("");
+
+  // WhatsApp share
+  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
 
   // Edit / delete target
   const [editTarget,   setEditTarget]   = useState<CollectionWithRelations | null>(null);
@@ -83,6 +91,16 @@ export function CollectionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["collections"] });
+      const dealerName = dealerOptions.find((d) => d.value === dealerId)?.label ?? "";
+      const message = buildCollectionWhatsAppMessage({
+        dealerName,
+        amount: parseFloat(amount),
+        paymentMode,
+        collectionDate,
+        staffName: user?.name,
+        notes: notes.trim() || undefined,
+      });
+      setWhatsappMessage(message);
       setDealerId(""); setPaymentMode(""); setAmount(""); setCollectionDate(TODAY); setNotes(""); setFormError("");
     },
     onError: (err: Error) => setFormError(err.message),
@@ -187,6 +205,29 @@ export function CollectionsPage() {
           />
         </div>
       </div>
+
+      {/* WhatsApp share dialog */}
+      <Dialog open={!!whatsappMessage} onOpenChange={(open) => { if (!open) setWhatsappMessage(null); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg flex flex-col overflow-hidden p-0">
+          <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="flex size-6 items-center justify-center rounded-full bg-[var(--accent)]">
+                <CheckCircle2Icon className="size-3.5 text-[var(--accent-foreground)]" />
+              </div>
+              <DialogTitle className="text-base">Collection Recorded!</DialogTitle>
+            </div>
+          </DialogHeader>
+          {whatsappMessage && (
+            <WhatsAppSharePanel
+              message={whatsappMessage}
+              title="Share on WhatsApp"
+              subtitle="Copy the message or tap Open WhatsApp to share with your group."
+              doneLabel="Done"
+              onDone={() => setWhatsappMessage(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialogs */}
       <CollectionsEditDialog

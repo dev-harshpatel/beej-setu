@@ -12,6 +12,9 @@ interface OrdersTableProps {
   loading: boolean;
   isDispatchStaff?: boolean;
   processingOrderId?: string | null;
+  canDelete?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
   onEdit: (order: OrderWithRelations) => void;
   onApprove: (order: OrderWithRelations) => void;
   onHold: (order: OrderWithRelations) => void;
@@ -25,6 +28,9 @@ export function OrdersTable({
   loading,
   isDispatchStaff = false,
   processingOrderId,
+  canDelete,
+  selectedIds,
+  onSelectionChange,
   onEdit,
   onApprove,
   onHold,
@@ -47,6 +53,13 @@ export function OrdersTable({
     );
   }
 
+  function toggleOne(id: string, checked: boolean) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (checked) next.add(id); else next.delete(id);
+    onSelectionChange(next);
+  }
+
   const sharedProps = {
     isDispatchStaff,
     processingOrderId,
@@ -62,12 +75,27 @@ export function OrdersTable({
       {/* Mobile: card list */}
       <div className="md:hidden flex flex-col gap-3">
         {orders.map((order) => (
-          <OrderCard key={order.id} order={order} {...sharedProps} />
+          <OrderCard
+            key={order.id}
+            order={order}
+            canDelete={canDelete}
+            selected={selectedIds?.has(order.id) ?? false}
+            onToggle={(checked) => toggleOne(order.id, checked)}
+            {...sharedProps}
+          />
         ))}
       </div>
 
       {/* Desktop: data table */}
-      <OrdersTableDesktop orders={orders} {...sharedProps} />
+      <div className="hidden md:flex flex-col flex-1 min-h-0">
+        <OrdersTableDesktop
+          orders={orders}
+          canDelete={canDelete}
+          selectedIds={selectedIds}
+          onSelectionChange={onSelectionChange}
+          {...sharedProps}
+        />
+      </div>
     </>
   );
 }

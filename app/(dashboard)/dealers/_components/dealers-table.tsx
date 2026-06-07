@@ -1,5 +1,6 @@
 import { MapPinIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -22,23 +23,48 @@ interface DealersTableProps {
   canDelete: boolean;
   onEdit: (dealer: DealerWithStaffRow) => void;
   onDelete: (dealer: DealerWithStaffRow) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDelete, onEdit, onDelete }: DealersTableProps) {
+export function DealersTable({
+  dealers, loading, isStaff = false, canEdit, canDelete,
+  onEdit, onDelete, selectedIds, onSelectionChange,
+}: DealersTableProps) {
+  const showCheckboxes = canDelete && !!onSelectionChange;
+
+  const allPageIds = dealers.map((d) => d.id);
+  const allSelected = allPageIds.length > 0 && allPageIds.every((id) => selectedIds?.has(id));
+  const someSelected = allPageIds.some((id) => selectedIds?.has(id));
+
+  function toggleAll(checked: boolean) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (checked) allPageIds.forEach((id) => next.add(id));
+    else         allPageIds.forEach((id) => next.delete(id));
+    onSelectionChange(next);
+  }
+
+  function toggleOne(id: string, checked: boolean) {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (checked) next.add(id); else next.delete(id);
+    onSelectionChange(next);
+  }
+
   if (loading) {
     return (
       <div className="overflow-auto rounded-lg border border-border h-full">
         <table className="w-full caption-bottom text-sm">
-          {/* Mobile header */}
           <TableHeader className="sticky top-0 z-10 [&_th]:bg-card md:hidden">
             <TableRow>
               <TableHead>Dealer</TableHead>
               {(canEdit || canDelete) && <TableHead className="w-16 text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
-          {/* Desktop header */}
           <TableHeader className="sticky top-0 z-10 [&_th]:bg-card hidden md:table-header-group">
             <TableRow>
+              {showCheckboxes && <TableHead className="w-8" />}
               <TableHead>Dealer Name</TableHead>
               {!isStaff && <TableHead>Assigned Staff</TableHead>}
               <TableHead>Contact</TableHead>
@@ -50,15 +76,9 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
           <TableBody>
             {Array.from({ length: 8 }).map((_, i) => (
               <TableRow key={i}>
-                {/* Mobile skeleton */}
-                <TableCell className="md:hidden py-2">
-                  <div className="flex flex-col gap-1">
-                    <Skeleton className="h-3.5 w-32" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </TableCell>
+                <TableCell className="md:hidden py-2"><Skeleton className="h-3.5 w-32" /></TableCell>
                 {(canEdit || canDelete) && <TableCell className="md:hidden" />}
-                {/* Desktop skeleton */}
+                {showCheckboxes && <TableCell className="hidden md:table-cell w-8" />}
                 <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-32" /></TableCell>
                 {!isStaff && <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>}
                 <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
@@ -77,10 +97,23 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
     <div className="overflow-auto rounded-lg border border-border h-full">
       <table className="w-full caption-bottom text-sm">
 
-        {/* ── Mobile header (single "Dealer" column) ── */}
+        {/* ── Mobile header ── */}
         <TableHeader className="sticky top-0 z-10 [&_th]:bg-card md:hidden">
           <TableRow>
-            <TableHead>Dealer</TableHead>
+            <TableHead>
+              <div className="flex items-center gap-2">
+                {showCheckboxes && (
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={someSelected && !allSelected}
+                      onCheckedChange={toggleAll}
+                    />
+                  </span>
+                )}
+                Dealer
+              </div>
+            </TableHead>
             {(canEdit || canDelete) && <TableHead className="w-16 text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
@@ -88,6 +121,17 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
         {/* ── Desktop header ── */}
         <TableHeader className="sticky top-0 z-10 [&_th]:bg-card hidden md:table-header-group">
           <TableRow>
+            {showCheckboxes && (
+              <TableHead className="w-8 pl-3">
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected && !allSelected}
+                    onCheckedChange={toggleAll}
+                  />
+                </span>
+              </TableHead>
+            )}
             <TableHead>Dealer Name</TableHead>
             {!isStaff && <TableHead>Assigned Staff</TableHead>}
             <TableHead>Contact</TableHead>
@@ -99,8 +143,9 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
 
         <TableBody>
           {dealers.map((dealer) => {
-            const dotClass = STATUS_DOT[dealer.status as DealerStatusValue] ?? "bg-muted";
-            const meta = [dealer.contact, dealer.territory].filter(Boolean).join(" · ");
+            const dotClass  = STATUS_DOT[dealer.status as DealerStatusValue] ?? "bg-muted";
+            const meta      = [dealer.contact, dealer.territory].filter(Boolean).join(" · ");
+            const isChecked = selectedIds?.has(dealer.id) ?? false;
 
             return (
               <TableRow
@@ -108,15 +153,20 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
                 className={canEdit ? "cursor-pointer" : ""}
                 onClick={() => canEdit && onEdit(dealer)}
               >
-                {/* ── Mobile cell: stacked name + meta + status dot ── */}
+                {/* ── Mobile cell ── */}
                 <TableCell className="md:hidden py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className={`size-1.5 rounded-full shrink-0 ${dotClass}`} />
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm leading-tight truncate">{dealer.name}</p>
-                      {meta && (
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{meta}</p>
-                      )}
+                  <div className="flex items-center gap-2.5">
+                    {showCheckboxes && (
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={isChecked} onCheckedChange={(c) => toggleOne(dealer.id, c)} />
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className={`size-1.5 rounded-full shrink-0 ${dotClass}`} />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm leading-tight truncate">{dealer.name}</p>
+                        {meta && <p className="text-xs text-muted-foreground mt-0.5 truncate">{meta}</p>}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
@@ -136,6 +186,13 @@ export function DealersTable({ dealers, loading, isStaff = false, canEdit, canDe
                         </Button>
                       )}
                     </div>
+                  </TableCell>
+                )}
+
+                {/* ── Desktop checkbox cell ── */}
+                {showCheckboxes && (
+                  <TableCell className="hidden md:table-cell w-8 pl-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox checked={isChecked} onCheckedChange={(c) => toggleOne(dealer.id, c)} />
                   </TableCell>
                 )}
 
