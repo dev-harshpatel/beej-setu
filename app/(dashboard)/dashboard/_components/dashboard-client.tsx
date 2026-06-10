@@ -148,12 +148,12 @@ export function DashboardClient() {
   const displayStats = stats ?? EMPTY_STATS;
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <StatsRow stats={displayStats} loading={statsLoading} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 flex-1 min-h-0 items-stretch">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 lg:flex-1 lg:min-h-0 lg:items-stretch">
         {/* Pending Orders — 3/5 */}
-        <div className="lg:col-span-3 rounded-xl border border-border bg-card flex flex-col min-h-0">
+        <div className="lg:col-span-3 rounded-xl border border-border bg-card flex flex-col lg:min-h-0">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5 shrink-0">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Pending Orders</h3>
@@ -167,7 +167,7 @@ export function DashboardClient() {
               </span>
             )}
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="overflow-y-auto max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0">
             <PendingOrdersTable
               orders={pendingOrders}
               onApprove={handleApprove}
@@ -178,14 +178,14 @@ export function DashboardClient() {
         </div>
 
         {/* Activity Feed — 2/5 */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col min-h-0">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card flex flex-col lg:min-h-0">
           <div className="border-b border-border px-4 py-3 sm:px-5 shrink-0">
             <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Latest actions across the platform
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4 sm:px-5">
+          <div className="overflow-y-auto max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0 px-4 py-4 sm:px-5">
             <ActivityFeed items={activityItems} />
           </div>
         </div>

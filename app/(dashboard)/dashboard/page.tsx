@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="flex flex-col lg:h-full lg:overflow-hidden">
       <header className="sticky top-0 z-10 bg-background flex h-16 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -21,7 +21,7 @@ export default async function DashboardPage() {
         />
         <h1 className="text-sm font-medium">Dashboard</h1>
       </header>
-      <div className="flex-1 min-h-0 flex flex-col px-4 sm:px-5 pt-3 sm:pt-4 pb-4 overflow-hidden">
+      <div className="flex flex-col px-4 sm:px-5 pt-3 sm:pt-4 pb-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
         <DashboardRouter />
       </div>
     </div>

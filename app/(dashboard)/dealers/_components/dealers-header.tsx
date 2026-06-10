@@ -11,7 +11,7 @@ interface DealersHeaderProps {
 export function DealersHeader({ total, canCreate, onAdd, onUpload }: DealersHeaderProps) {
   return (
     <div className="flex items-start justify-between gap-3 sm:items-center">
-      <div>
+      <div className="hidden sm:block">
         <h2 className="text-xl font-semibold text-foreground">Dealers</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           {total > 0 ? `${total} dealer${total !== 1 ? "s" : ""}` : "Manage your dealer network"}

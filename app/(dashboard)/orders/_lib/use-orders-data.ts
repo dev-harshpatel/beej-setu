@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
 import type { OrderWithRelations } from "@/types/order.types";
@@ -27,6 +28,8 @@ export function useOrdersData({
   dateTo,
 }: UseOrdersDataParams) {
   const queryClient = useQueryClient();
+  const manualRefresh = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data, isFetching } = useQuery({
     queryKey: [
@@ -49,16 +52,25 @@ export function useOrdersData({
     placeholderData: keepPreviousData,
   });
 
+  // Clear the spinner only when the manual-triggered fetch completes
+  useEffect(() => {
+    if (!isFetching && manualRefresh.current) {
+      manualRefresh.current = false;
+      setIsRefreshing(false);
+    }
+  }, [isFetching]);
+
   function invalidateOrders() {
+    manualRefresh.current = true;
+    setIsRefreshing(true);
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORDERS });
   }
 
   return {
-    orders:       data?.data ?? [],
-    total:        data?.total ?? 0,
-    // Skeleton only on the very first load — keepPreviousData handles filter transitions
-    loading:      isFetching && !data,
-    isRefreshing: isFetching && !!data,
+    orders:    data?.data ?? [],
+    total:     data?.total ?? 0,
+    loading:   isFetching && !data,
+    isRefreshing,
     invalidateOrders,
   };
 }

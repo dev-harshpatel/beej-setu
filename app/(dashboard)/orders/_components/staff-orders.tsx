@@ -82,7 +82,7 @@ export function StaffOrders() {
     <div className="h-full overflow-y-auto flex flex-col gap-4 pb-4">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="hidden sm:block">
           <h2 className="text-xl font-semibold text-foreground">My Orders</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             {total > 0 ? `${total} order${total !== 1 ? "s" : ""}` : "Your placed orders"}

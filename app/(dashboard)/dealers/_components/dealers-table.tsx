@@ -59,7 +59,7 @@ export function DealersTable({
           <TableHeader className="sticky top-0 z-10 [&_th]:bg-card md:hidden">
             <TableRow>
               <TableHead>Dealer</TableHead>
-              {(canEdit || canDelete) && <TableHead className="w-16 text-right">Actions</TableHead>}
+              {canEdit && <TableHead className="w-16 text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableHeader className="sticky top-0 z-10 [&_th]:bg-card hidden md:table-header-group">
@@ -77,7 +77,7 @@ export function DealersTable({
             {Array.from({ length: 8 }).map((_, i) => (
               <TableRow key={i}>
                 <TableCell className="md:hidden py-2"><Skeleton className="h-3.5 w-32" /></TableCell>
-                {(canEdit || canDelete) && <TableCell className="md:hidden" />}
+                {canEdit && <TableCell className="md:hidden" />}
                 {showCheckboxes && <TableCell className="hidden md:table-cell w-8" />}
                 <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-32" /></TableCell>
                 {!isStaff && <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>}
@@ -171,21 +171,12 @@ export function DealersTable({
                   </div>
                 </TableCell>
 
-                {/* ── Mobile actions cell ── */}
-                {(canEdit || canDelete) && (
+                {/* ── Mobile actions cell — edit only; delete via checkbox + bulk bar ── */}
+                {canEdit && (
                   <TableCell className="md:hidden text-right py-2.5" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-0.5">
-                      {canEdit && (
-                        <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => onEdit(dealer)}>
-                          <PencilIcon className="size-3.5" />
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button variant="ghost" size="sm" className="size-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onDelete(dealer)}>
-                          <Trash2Icon className="size-3.5" />
-                        </Button>
-                      )}
-                    </div>
+                    <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => onEdit(dealer)}>
+                      <PencilIcon className="size-3.5" />
+                    </Button>
                   </TableCell>
                 )}
 

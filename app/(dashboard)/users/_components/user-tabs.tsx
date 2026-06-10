@@ -20,7 +20,7 @@ export function UserTabs() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="hidden sm:block">
           <h2 className="text-xl font-semibold text-foreground">Users</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             Manage your team members

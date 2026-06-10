@@ -197,8 +197,8 @@ export function OrdersTabs() {
 
         {/* Header row */}
         <div className="flex items-center gap-3">
-          {/* Title */}
-          <div className="flex flex-col gap-0.5 shrink-0">
+          {/* Title — hidden on mobile to make room for tab dropdown + actions */}
+          <div className="hidden sm:flex flex-col gap-0.5 shrink-0">
             <h2 className="text-xl font-semibold text-foreground">Orders</h2>
             <p className="text-sm text-muted-foreground">
               {total > 0 ? `${total} order${total !== 1 ? "s" : ""} found` : "Manage seed orders"}
@@ -360,6 +360,8 @@ export function OrdersTabs() {
         }}
         onConfirmed={() => { setConfirmOpen(false); invalidateOrders(); }}
       />
+
+
     </div>
   );
 }
