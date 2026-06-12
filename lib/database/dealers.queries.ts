@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, DealerRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
 import { toTitleCase } from "@/lib/utils/normalize";
+import { ROLES } from "@/constants/roles.constants";
+import { friendlyDbErrorMessage } from "@/lib/database/db-errors";
 
 export type DealerWithStaffRow = DealerRow & {
   staff: { id: string; name: string; username: string } | null;
@@ -11,6 +13,7 @@ export interface DealerBulkUploadRow {
   name: string;
   contact?: string;
   territory?: string;
+  staff_username?: string;
   default_transport?: string;
   notes?: string;
 }
@@ -144,12 +147,42 @@ export const dealersQueries = {
     const results: DealerBulkUploadResult[] = [];
     let successCount = 0;
 
+    // Resolve all staff usernames in one org-scoped query (usernames are stored lowercase)
+    const usernames = [
+      ...new Set(
+        rows
+          .map((r) => r.staff_username?.trim().toLowerCase())
+          .filter((u): u is string => !!u)
+      ),
+    ];
+    const staffByUsername = new Map<string, { id: string; territory: string | null }>();
+    if (usernames.length > 0) {
+      const { data: staffRows, error: staffErr } = await db
+        .from("profiles")
+        .select("id, username, territory")
+        .eq("organization_id", orgId)
+        .eq("role", ROLES.STAFF)
+        .is("deleted_at", null)
+        .in("username", usernames);
+      if (staffErr) throw staffErr;
+      for (const s of staffRows ?? []) {
+        staffByUsername.set(s.username, { id: s.id, territory: s.territory });
+      }
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNum = i + 1;
 
       if (!row.name?.trim()) {
-        results.push({ row: rowNum, name: row.name ?? "", contact: row.contact ?? "", success: false, message: "name is required" });
+        results.push({ row: rowNum, name: row.name ?? "", contact: row.contact ?? "", success: false, message: 'The "name" column is empty — every dealer needs a name' });
+        continue;
+      }
+
+      const username = row.staff_username?.trim().toLowerCase();
+      const staff = username ? staffByUsername.get(username) : undefined;
+      if (username && !staff) {
+        results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: `No staff user found with username "${username}" — check the exact username on the Users page, fix the sheet and re-upload this row` });
         continue;
       }
 
@@ -157,13 +190,16 @@ export const dealersQueries = {
         organization_id:   orgId,
         name:              toTitleCase(row.name),
         contact:           row.contact?.trim()                              || null,
-        territory:         row.territory?.trim()     ? toTitleCase(row.territory)      : null,
+        staff_id:          staff?.id ?? null,
+        // Like the dealer form, fall back to the assigned staff's territory
+        territory:         row.territory?.trim()     ? toTitleCase(row.territory)      : staff?.territory ?? null,
         default_transport: row.default_transport?.trim() ? toTitleCase(row.default_transport) : null,
         notes:             row.notes?.trim()                                || null,
       });
 
       if (insertErr) {
-        results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: insertErr.message });
+        console.error(`dealers bulkInsert row ${rowNum} error:`, insertErr.message);
+        results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: friendlyDbErrorMessage(insertErr, "dealer") });
         continue;
       }
 

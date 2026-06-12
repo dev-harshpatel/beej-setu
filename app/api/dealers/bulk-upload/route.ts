@@ -20,7 +20,19 @@ export const POST = withAuth(
     }
 
     const db = getSupabaseAdminClient();
-    const { results, successCount } = await dealersQueries.bulkInsert(db, orgId, rows);
+
+    // bulkInsert only throws before any row is inserted (staff username lookup),
+    // so a failure here means nothing was imported.
+    let results, successCount;
+    try {
+      ({ results, successCount } = await dealersQueries.bulkInsert(db, orgId, rows));
+    } catch (err) {
+      console.error("dealers bulk-upload error:", err instanceof Error ? err.message : err);
+      return apiError(
+        "We couldn't process the file right now — nothing was imported. Please try uploading again.",
+        500,
+      );
+    }
 
     // Fire-and-forget audit log
     db.from("bulk_upload_logs").insert({
