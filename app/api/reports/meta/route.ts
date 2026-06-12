@@ -5,14 +5,15 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 import type { ProfileRow } from "@/types/database.types";
 
 export const GET = withAuth(
-  async (_req, _ctx, _auth) => {
+  async (_req, _ctx, { orgId }) => {
     const db = getSupabaseAdminClient();
 
     const [territories, staffResult] = await Promise.all([
-      reportsQueries.getTerritories(db),
+      reportsQueries.getTerritories(db, orgId),
       db
         .from("profiles")
         .select("id, name, territory")
+        .eq("organization_id", orgId)
         .eq("role", "STAFF")
         .eq("is_active", true)
         .order("name"),

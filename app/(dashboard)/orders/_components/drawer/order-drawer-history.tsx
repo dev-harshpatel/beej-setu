@@ -1,10 +1,6 @@
 import { ClockIcon, UserIcon } from "lucide-react";
+import { formatDateTimeMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
-
-const DATE_OPTS: Intl.DateTimeFormatOptions = {
-  day: "2-digit", month: "short", year: "numeric",
-  hour: "2-digit", minute: "2-digit",
-};
 
 export function OrderDrawerHistory({ order }: { order: OrderWithRelations }) {
   return (
@@ -19,7 +15,7 @@ export function OrderDrawerHistory({ order }: { order: OrderWithRelations }) {
             <p className="text-sm font-medium">Order Created</p>
             <p className="text-xs text-muted-foreground">
               by {order.staff?.name ?? "Unknown"} ·{" "}
-              {new Date(order.created_at).toLocaleString("en-IN", DATE_OPTS)}
+              {formatDateTimeMedium(order.created_at)}
             </p>
           </div>
         </div>
@@ -32,7 +28,7 @@ export function OrderDrawerHistory({ order }: { order: OrderWithRelations }) {
             <div className="flex flex-col gap-0.5">
               <p className="text-sm font-medium">Last Modified</p>
               <p className="text-xs text-muted-foreground">
-                {new Date(order.updated_at).toLocaleString("en-IN", DATE_OPTS)}
+                {formatDateTimeMedium(order.updated_at)}
               </p>
             </div>
           </div>

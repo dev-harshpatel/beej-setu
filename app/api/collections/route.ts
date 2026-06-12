@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { collectionsQueries } from "@/lib/database/collections.queries";
+import { dealersQueries } from "@/lib/database/dealers.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { z } from "zod";
@@ -14,7 +15,7 @@ const createCollectionSchema = z.object({
 });
 
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, { profile }) => {
+  async (req: NextRequest, _ctx, { profile, orgId }) => {
     const { searchParams } = req.nextUrl;
     const db = getSupabaseAdminClient();
 
@@ -24,7 +25,7 @@ export const GET = withAuth(
         ? profile.id
         : (searchParams.get("staffId") ?? undefined);
 
-    const result = await collectionsQueries.getAll(db, {
+    const result = await collectionsQueries.getAll(db, orgId, {
       staffId,
       dealerId:  searchParams.get("dealerId")  ?? undefined,
       dateFrom:  searchParams.get("dateFrom")  ?? undefined,
@@ -37,7 +38,7 @@ export const GET = withAuth(
 );
 
 export const POST = withAuth(
-  async (req: NextRequest, _ctx, { profile }) => {
+  async (req: NextRequest, _ctx, { profile, orgId }) => {
     const body   = await req.json().catch(() => null);
     const parsed = createCollectionSchema.safeParse(body);
     if (!parsed.success) {
@@ -47,7 +48,11 @@ export const POST = withAuth(
     const { dealerId, paymentMode, amount, collectionDate, notes } = parsed.data;
     const db = getSupabaseAdminClient();
 
-    const collection = await collectionsQueries.create(db, {
+    // Org-scoped getById doubles as the cross-tenant check for dealerId
+    const dealer = await dealersQueries.getById(db, dealerId, orgId).catch(() => null);
+    if (!dealer) return apiError("Dealer not found", 404);
+
+    const collection = await collectionsQueries.create(db, orgId, {
       dealer_id:       dealerId,
       staff_id:        profile.id,
       payment_mode:    paymentMode,

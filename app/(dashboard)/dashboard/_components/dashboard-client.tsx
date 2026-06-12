@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDashboardStore } from "@/store/dashboard.store";
-import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
+import { QUERY_KEYS } from "@/constants/query-keys";
+import { relativeTime } from "@/lib/utils";
 import { StatsRow } from "./stats-row";
 import { PendingOrdersTable } from "./pending-orders-table";
 import { ActivityFeed, type ActivityItem } from "./activity-feed";
@@ -29,18 +30,8 @@ const EMPTY_STATS: DashboardStats = {
   totalStaff: 0, totalAdmins: 0, salesReturns: 0,
 };
 
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)   return "just now";
-  if (mins  < 60)  return `${mins}m ago`;
-  if (hours < 24)  return `${hours}h ago`;
-  return `${days}d ago`;
-}
-
 export function DashboardClient() {
+  const queryClient = useQueryClient();
   const setPendingOrdersCount = useDashboardStore((s) => s.setPendingOrdersCount);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -71,9 +62,15 @@ export function DashboardClient() {
     time:   relativeTime(e.created_at),
   }));
 
-  const [pendingOrders, setPendingOrders] = useState<OrderWithRelations[]>([]);
-  const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
-  const [, startTransition] = useTransition();
+  const { data: pendingOrders = [] } = useQuery<OrderWithRelations[]>({
+    queryKey: ["dashboard-pending-orders"],
+    queryFn: async () => {
+      const res  = await fetch("/api/orders?status=PENDING&pageSize=10&page=1");
+      const json = await res.json();
+      if (!json.success) return [];
+      return json.data?.data ?? [];
+    },
+  });
 
   const [confirmOrder, setConfirmOrder] = useState<OrderWithRelations | null>(null);
   const [confirmOpen, setConfirmOpen]   = useState(false);
@@ -82,19 +79,7 @@ export function DashboardClient() {
 
   useEffect(() => {
     if (stats) setPendingOrdersCount(stats.pendingApprovals);
-  }, [stats, setPendingOrdersCount, ordersRefreshKey]);
-
-  const fetchPendingOrders = useCallback(() => {
-    startTransition(async () => {
-      try {
-        const res = await fetch("/api/orders?status=PENDING&pageSize=10&page=1");
-        const json = await res.json();
-        if (json.success) setPendingOrders(json.data?.data ?? []);
-      } catch { /* silent */ }
-    });
-  }, []);
-
-  useEffect(() => { fetchPendingOrders(); }, [fetchPendingOrders, ordersRefreshKey]);
+  }, [stats, setPendingOrdersCount]);
 
   function handleApprove(order: OrderWithRelations) {
     setConfirmOrder(order);
@@ -120,7 +105,8 @@ export function DashboardClient() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.message ?? "Status update failed");
-    setOrdersRefreshKey((k) => k + 1);
+    queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD_STATS });
   }
 
   async function handleUpdate(
@@ -143,6 +129,7 @@ export function DashboardClient() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.message ?? "Update failed");
+    queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] });
   }
 
   const displayStats = stats ?? EMPTY_STATS;
@@ -198,7 +185,8 @@ export function DashboardClient() {
         onEdit={handleConfirmEdit}
         onConfirmed={() => {
           setConfirmOpen(false);
-          setOrdersRefreshKey((k) => k + 1);
+          queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] });
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD_STATS });
         }}
       />
 
@@ -210,7 +198,7 @@ export function DashboardClient() {
         onStatusChange={handleStatusChange}
         onUpdate={handleUpdate}
         onCreateChallan={() => {}}
-        onRefresh={() => setOrdersRefreshKey((k) => k + 1)}
+        onRefresh={() => queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] })}
       />
     </div>
   );

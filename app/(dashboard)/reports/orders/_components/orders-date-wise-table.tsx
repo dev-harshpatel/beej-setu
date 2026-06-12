@@ -23,7 +23,8 @@ export function OrdersDateWiseTable({ grouped, loading, totalOrders }: Props) {
   function toggleDate(date: string) {
     setExpandedDates((prev) => {
       const next = new Set(prev);
-      next.has(date) ? next.delete(date) : next.add(date);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
       return next;
     });
   }

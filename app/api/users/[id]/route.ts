@@ -2,15 +2,14 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { usersQueries } from "@/lib/database/users.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
-import { PERMISSIONS, ROLES, type Role } from "@/constants/roles.constants";
-
-const STAFF_ROLES: Role[] = [ROLES.STAFF, ROLES.DISPATCH_STAFF];
+import { PERMISSIONS, type Role } from "@/constants/roles.constants";
+import { canManageRole } from "@/lib/api/role-authorization";
 
 export const GET = withAuth(
-  async (_req: NextRequest, ctx, _auth) => {
+  async (_req: NextRequest, ctx, auth) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
-    const user = await usersQueries.getById(db, id);
+    const user = await usersQueries.getById(db, id, auth.orgId).catch(() => null);
 
     if (!user) return apiError("User not found", 404);
     return apiSuccess(user);
@@ -24,19 +23,14 @@ export const PATCH = withAuth(
     const body = await req.json().catch(() => ({}));
     const db = getSupabaseAdminClient();
 
-    const target = await usersQueries.getById(db, id);
+    const target = await usersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!target) return apiError("User not found", 404);
 
-    const allowedTargetRoles: Role[] =
-      auth.profile.role === ROLES.SUPER_ADMIN
-        ? [ROLES.ADMIN, ROLES.STAFF, ROLES.DISPATCH_STAFF]
-        : STAFF_ROLES;
-
-    if (target.id !== auth.profile.id && !allowedTargetRoles.includes(target.role as Role)) {
+    if (target.id !== auth.profile.id && !canManageRole(auth.profile.role as Role, target.role as Role)) {
       return apiError("You do not have permission to edit this user", 403);
     }
 
-    const user = await usersQueries.update(db, id, {
+    const user = await usersQueries.update(db, id, auth.orgId, {
       name:          body.name,
       phone:         body.phone,
       role:          body.role,
@@ -55,23 +49,18 @@ export const DELETE = withAuth(
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const target = await usersQueries.getById(db, id);
+    const target = await usersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!target) return apiError("User not found", 404);
 
     if (target.id === auth.profile.id) {
       return apiError("You cannot delete your own account", 400);
     }
 
-    const allowedTargetRoles: Role[] =
-      auth.profile.role === ROLES.SUPER_ADMIN
-        ? [ROLES.ADMIN, ROLES.STAFF, ROLES.DISPATCH_STAFF]
-        : STAFF_ROLES;
-
-    if (!allowedTargetRoles.includes(target.role as Role)) {
+    if (!canManageRole(auth.profile.role as Role, target.role as Role)) {
       return apiError("You do not have permission to delete this user", 403);
     }
 
-    await usersQueries.softDelete(db, id);
+    await usersQueries.softDelete(db, id, auth.orgId);
     return apiSuccess(null, "User deleted");
   },
   PERMISSIONS.USERS_DELETE

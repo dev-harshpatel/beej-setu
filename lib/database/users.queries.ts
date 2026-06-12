@@ -1,27 +1,52 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, ProfileRow } from "@/types/database.types";
+import type { Database, OrganizationRow, ProfileRow } from "@/types/database.types";
 import type { PaginationParams } from "@/types/common.types";
 
 // Never include encrypted_password — it must only be accessed via the dedicated server-side endpoint.
-const PROFILE_COLUMNS = "id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at, deleted_at";
+const PROFILE_COLUMNS = "id, organization_id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at, deleted_at";
+
+export type ProfileOrganization = Pick<OrganizationRow, "id" | "name" | "slug" | "logo_url" | "status">;
+
+export type ProfileWithOrgRow = ProfileRow & {
+  organization: ProfileOrganization;
+};
 
 export const usersQueries = {
   async getById(
     db: SupabaseClient<Database>,
-    id: string
+    id: string,
+    orgId: string
   ): Promise<ProfileRow | null> {
     const { data, error } = await db
       .from("profiles")
       .select(PROFILE_COLUMNS)
       .eq("id", id)
+      .eq("organization_id", orgId)
       .is("deleted_at", null)
       .single();
     if (error) throw error;
     return data as ProfileRow;
   },
 
+  // Used wherever the caller's org is not yet known (auth guard, login, /me) —
+  // this is the query that DISCOVERS the org, so it takes no orgId filter.
+  async getByIdWithOrg(
+    db: SupabaseClient<Database>,
+    id: string
+  ): Promise<ProfileWithOrgRow | null> {
+    const { data, error } = await db
+      .from("profiles")
+      .select(`${PROFILE_COLUMNS}, organization:organizations(id, name, slug, logo_url, status)`)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .single();
+    if (error) throw error;
+    return data as unknown as ProfileWithOrgRow;
+  },
+
   async getAll(
     db: SupabaseClient<Database>,
+    orgId: string,
     params?: PaginationParams & { role?: string; isActive?: boolean }
   ) {
     const page = params?.page ?? 1;
@@ -32,6 +57,7 @@ export const usersQueries = {
     let query = db
       .from("profiles")
       .select(PROFILE_COLUMNS, { count: "exact" })
+      .eq("organization_id", orgId)
       .is("deleted_at", null);
 
     if (params?.search) {
@@ -55,31 +81,35 @@ export const usersQueries = {
   async update(
     db: SupabaseClient<Database>,
     id: string,
+    orgId: string,
     payload: Database["public"]["Tables"]["profiles"]["Update"]
   ): Promise<ProfileRow> {
     const { data, error } = await db
       .from("profiles")
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("organization_id", orgId)
       .select(PROFILE_COLUMNS)
       .single();
     if (error) throw error;
     return data as ProfileRow;
   },
 
-  async softDelete(db: SupabaseClient<Database>, id: string): Promise<void> {
+  async softDelete(db: SupabaseClient<Database>, id: string, orgId: string): Promise<void> {
     const { error } = await db
       .from("profiles")
       .update({ deleted_at: new Date().toISOString(), is_active: false })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("organization_id", orgId);
     if (error) throw error;
   },
 
-  async bulkSoftDelete(db: SupabaseClient<Database>, ids: string[]): Promise<void> {
+  async bulkSoftDelete(db: SupabaseClient<Database>, ids: string[], orgId: string): Promise<void> {
     const { error } = await db
       .from("profiles")
       .update({ deleted_at: new Date().toISOString(), is_active: false })
-      .in("id", ids);
+      .in("id", ids)
+      .eq("organization_id", orgId);
     if (error) throw error;
   },
 };

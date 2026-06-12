@@ -2,26 +2,13 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS } from "@/constants/roles.constants";
+import { dealersQueries, type DealerBulkUploadRow } from "@/lib/database/dealers.queries";
 
-export interface DealerBulkUploadRow {
-  name: string;
-  contact?: string;
-  territory?: string;
-  default_transport?: string;
-  notes?: string;
-}
-
-export interface DealerBulkUploadResult {
-  row: number;
-  name: string;
-  contact?: string;
-  success: boolean;
-  message: string;
-}
+export type { DealerBulkUploadRow, DealerBulkUploadResult } from "@/lib/database/dealers.queries";
 
 // POST /api/dealers/bulk-upload
 export const POST = withAuth(
-  async (req: NextRequest, _ctx, { profile }) => {
+  async (req: NextRequest, _ctx, { profile, orgId }) => {
     const body = await req.json().catch(() => null);
     if (!Array.isArray(body?.rows) || body.rows.length === 0) {
       return apiError("rows array is required", 400);
@@ -33,45 +20,18 @@ export const POST = withAuth(
     }
 
     const db = getSupabaseAdminClient();
-    const results: DealerBulkUploadResult[] = [];
-    let successCount = 0;
+    const { results, successCount } = await dealersQueries.bulkInsert(db, orgId, rows);
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowNum = i + 1;
-
-      if (!row.name?.trim()) {
-        results.push({ row: rowNum, name: row.name ?? "", contact: row.contact ?? "", success: false, message: "name is required" });
-        continue;
-      }
-
-      const { error: insertErr } = await db.from("dealers").insert({
-        name:              row.name.trim(),
-        contact:           row.contact?.trim()          || null,
-        territory:         row.territory?.trim()          || null,
-        default_transport: row.default_transport?.trim()  || null,
-        notes:             row.notes?.trim()              || null,
-      });
-
-      if (insertErr) {
-        results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: insertErr.message });
-        continue;
-      }
-
-      successCount++;
-      results.push({ row: rowNum, name: row.name, contact: row.contact, success: true, message: "Created" });
-    }
-
-    // Fire-and-forget audit log — types pending migration 021
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (db as any).from("bulk_upload_logs").insert({
+    // Fire-and-forget audit log
+    db.from("bulk_upload_logs").insert({
+      organization_id: orgId,
       upload_type:   "dealers",
       uploaded_by:   profile.id,
       total_rows:    rows.length,
       success_count: successCount,
       failure_count: rows.length - successCount,
       results,
-    }).then(({ error }: { error: { message: string } | null }) => {
+    }).then(({ error }) => {
       if (error) console.error("bulk_upload_logs insert error:", error.message);
     });
 

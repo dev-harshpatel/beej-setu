@@ -18,6 +18,7 @@ import {
   TRANSPORT_UPDATE_ELIGIBLE_STATUSES,
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 
 const STATUS_BORDER: Record<OrderStatusValue, string> = {
@@ -71,11 +72,7 @@ export function OrderCard({
 
   const borderClass = STATUS_BORDER[status] ?? "border-l-border";
   const itemCount = order.items?.length ?? 0;
-  const date = new Date(order.created_at).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = formatDateMedium(order.created_at);
 
   return (
     <div className={`rounded-lg border border-border border-l-4 ${borderClass} bg-card p-3 flex flex-col gap-2`}>

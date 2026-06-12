@@ -15,6 +15,7 @@ import {
   TRANSPORT_UPDATE_ELIGIBLE_STATUSES,
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 
 interface OrdersTableDesktopProps {
@@ -133,9 +134,7 @@ export function OrdersTableDesktop({
                 )}
 
                 <td className={`${td} hidden sm:table-cell text-sm text-muted-foreground`}>
-                  {new Date(order.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit", month: "short", year: "numeric",
-                  })}
+                  {formatDateMedium(order.created_at)}
                 </td>
                 <td className={`${td} hidden sm:table-cell text-sm text-muted-foreground`}>
                   {order.items?.length ?? 0}

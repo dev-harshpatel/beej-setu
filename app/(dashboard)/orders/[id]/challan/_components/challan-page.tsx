@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
@@ -24,6 +25,7 @@ import {
   TRANSPORT_UPDATE_ELIGIBLE_STATUSES,
 } from "@/constants/order-status.constants";
 import { ROUTES } from "@/constants/routes.constants";
+import { formatDateLong, formatDateMedium } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import {
   buildGodownDispatchWhatsAppMessage,
@@ -32,63 +34,44 @@ import {
 import type { OrderWithRelations } from "@/types/order.types";
 import type { ChallanRow } from "@/types/database.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
+import { challanService } from "@/services/challan.service";
+
+const CHALLAN_LOADED_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUSES.GODOWN_DISPATCHED,
+  ORDER_STATUSES.TRANSPORT_DISPATCHED,
+  ORDER_STATUSES.SHIPPED,
+];
 
 export default function ChallanPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const currentUser = useAuthStore((s) => s.user);
 
-  const [order, setOrder] = useState<OrderWithRelations | null>(null);
-  const [challan, setChallan] = useState<ChallanRow | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: order, isLoading: loading, error } = useQuery({
+    queryKey: ["order-challan", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/orders/${id}`);
+      const json = await res.json();
+      if (!json.success) throw new Error("Order not found.");
+      return json.data as OrderWithRelations;
+    },
+    enabled: !!id,
+    staleTime: 0,
+  });
 
-  // Form fields
-  const [transport, setTransport] = useState("");
-  const [challanNumber, setChallanNumber] = useState("");
-  const [lrNumber, setLrNumber] = useState("");
-  const godownDate = new Date().toISOString().split("T")[0];
-  const [transportDate, setTransportDate] = useState("");
+  const needsChallan = order && CHALLAN_LOADED_STATUSES.includes(order.status as OrderStatusValue);
 
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { data: challan = null, isLoading: loadingChallan } = useQuery({
+    queryKey: ["challan", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/challans/${order!.id}`);
+      const json = await res.json().catch(() => null);
+      return json?.success && json.data ? (json.data as ChallanRow) : null;
+    },
+    enabled: !!needsChallan,
+    staleTime: 0,
+  });
 
-  // WhatsApp panel state
-  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
-  const [whatsappType, setWhatsappType] = useState<"godown" | "transport" | null>(null);
-
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    fetch(`/api/orders/${id}`)
-      .then((r) => r.json())
-      .then(async (json) => {
-        if (!json.success) { setError("Order not found."); return; }
-        const o = json.data as OrderWithRelations;
-        setOrder(o);
-        setTransport(o.dealer?.default_transport ?? "");
-        setChallanNumber(`DC-${o.order_number}`);
-
-        if (([
-          ORDER_STATUSES.GODOWN_DISPATCHED,
-          ORDER_STATUSES.TRANSPORT_DISPATCHED,
-          ORDER_STATUSES.SHIPPED,
-        ] as OrderStatusValue[]).includes(o.status)) {
-          const cr = await fetch(`/api/challans/${o.id}`).then((r) => r.json()).catch(() => null);
-          if (cr?.success && cr.data) {
-            const c = cr.data as ChallanRow;
-            setChallan(c);
-            setTransport(c.transport_name ?? "");
-            setChallanNumber(c.challan_number);
-            setLrNumber(c.lr_number ?? "");
-          }
-        }
-      })
-      .catch(() => setError("Failed to load order."))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  if (loading) {
+  if (loading || (needsChallan && loadingChallan)) {
     return (
       <div className="flex flex-col min-h-full">
         <PageHeader onBack={() => router.push(ROUTES.ORDERS.ROOT)} orderNumber="…" />
@@ -104,19 +87,45 @@ export default function ChallanPage() {
       <div className="flex flex-col min-h-full">
         <PageHeader onBack={() => router.push(ROUTES.ORDERS.ROOT)} orderNumber="—" />
         <div className="flex-1 flex items-center justify-center py-24 text-destructive text-sm">
-          {error ?? "Order not found."}
+          {error instanceof Error ? error.message : "Order not found."}
         </div>
       </div>
     );
   }
 
-  const status = order.status as OrderStatusValue;
+  return <ChallanForm order={order} challan={challan} />;
+}
+
+// ── ChallanForm: form state initialised from order/challan at mount ───────────
+
+function ChallanForm({
+  order,
+  challan,
+}: {
+  order: OrderWithRelations;
+  challan: ChallanRow | null;
+}) {
+  const router = useRouter();
+  const currentUser = useAuthStore((s) => s.user);
+
+  const [transport, setTransport]           = useState(() => challan?.transport_name ?? order.dealer?.default_transport ?? "");
+  const [challanNumber, setChallanNumber]   = useState(() => challan?.challan_number ?? `DC-${order.order_number}`);
+  const [lrNumber, setLrNumber]             = useState(() => challan?.lr_number ?? "");
+  const godownDate = new Date().toISOString().split("T")[0];
+  const [transportDate, setTransportDate]   = useState("");
+
+  const [saving, setSaving]           = useState(false);
+  const [formError, setFormError]     = useState<string | null>(null);
+  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
+  const [whatsappType, setWhatsappType]       = useState<"godown" | "transport" | null>(null);
+
+  const status     = order.status as OrderStatusValue;
   const isCreating = CHALLAN_ELIGIBLE_STATUSES.includes(status);
   const isUpdating = TRANSPORT_UPDATE_ELIGIBLE_STATUSES.includes(status);
   const isViewOnly = !isCreating && !isUpdating;
 
   function buildShareItems() {
-    return (order?.items ?? []).map((item) => ({
+    return (order.items ?? []).map((item) => ({
       cropName:    item.seed?.crops?.name ?? "—",
       seedName:    item.seed?.variety ?? "—",
       unit:        item.unit,
@@ -126,23 +135,15 @@ export default function ChallanPage() {
   }
 
   async function handleGodownDispatch() {
-    if (!order) return;
     if (!challanNumber.trim()) { setFormError("Challan number is required."); return; }
     setSaving(true); setFormError(null);
     try {
-      const res = await fetch("/api/challans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id: order.id,
-          challan_number: challanNumber.trim(),
-          transport_name: transport.trim() || null,
-          godown_dispatch_date: godownDate,
-        }),
+      await challanService.dispatchGodown({
+        orderId:             order.id,
+        challanNumber:       challanNumber.trim(),
+        transportName:       transport.trim() || undefined,
+        godownDispatchDate:  godownDate,
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setFormError(json.message ?? "Failed to save challan."); return; }
-
       const msg = buildGodownDispatchWhatsAppMessage({
         orderNumber:   order.order_number,
         challanNumber: challanNumber.trim(),
@@ -154,30 +155,22 @@ export default function ChallanPage() {
       });
       setWhatsappMessage(msg);
       setWhatsappType("godown");
-    } catch {
-      setFormError("Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setFormError((err as Error)?.message ?? "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleTransportDispatch() {
-    if (!order) return;
     if (!transportDate) { setFormError("Transport dispatch date is required."); return; }
     setSaving(true); setFormError(null);
     try {
-      const res = await fetch(`/api/challans/${order.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transport_dispatch_date: transportDate,
-          lr_number: lrNumber.trim() || null,
-          transport_name: transport.trim() || null,
-        }),
+      await challanService.dispatchTransport(order.id, {
+        transportDispatchDate: transportDate,
+        lrNumber:              lrNumber.trim() || undefined,
+        transportName:         transport.trim() || undefined,
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) { setFormError(json.message ?? "Failed to update."); return; }
-
       const msg = buildTransportDispatchWhatsAppMessage({
         orderNumber:   order.order_number,
         challanNumber: challan?.challan_number ?? challanNumber.trim(),
@@ -190,16 +183,14 @@ export default function ChallanPage() {
       });
       setWhatsappMessage(msg);
       setWhatsappType("transport");
-    } catch {
-      setFormError("Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setFormError((err as Error)?.message ?? "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  const orderDate = new Date(order.created_at).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "long", year: "numeric",
-  });
+  const orderDate = formatDateLong(order.created_at);
 
   const unitTotals: Record<string, number> = {};
   for (const item of order.items ?? []) {
@@ -207,7 +198,6 @@ export default function ChallanPage() {
     unitTotals[unit] = (unitTotals[unit] ?? 0) + item.quantity;
   }
 
-  // ── WhatsApp panel view ───────────────────────────────────────
   if (whatsappMessage) {
     return (
       <div className="flex flex-col min-h-full">
@@ -392,16 +382,12 @@ export default function ChallanPage() {
                   <InfoRow label="Challan No." value={challan.challan_number} mono />
                   <InfoRow
                     label="Godown Dispatched"
-                    value={new Date(challan.godown_dispatch_date).toLocaleDateString("en-IN", {
-                      day: "2-digit", month: "short", year: "numeric",
-                    })}
+                    value={formatDateMedium(challan.godown_dispatch_date)}
                   />
                   {challan.transport_dispatch_date && (
                     <InfoRow
                       label="Transport Dispatched"
-                      value={new Date(challan.transport_dispatch_date).toLocaleDateString("en-IN", {
-                        day: "2-digit", month: "short", year: "numeric",
-                      })}
+                      value={formatDateMedium(challan.transport_dispatch_date)}
                     />
                   )}
                   {challan.lr_number && (

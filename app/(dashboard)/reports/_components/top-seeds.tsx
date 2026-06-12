@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatNumber } from "@/lib/utils";
 
 export interface TopSeedRow {
   seedId: string;
@@ -60,7 +61,7 @@ export function TopSeeds({ rows, loading }: Props) {
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums hidden sm:table-cell">{row.orderedBags}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums hidden sm:table-cell">{row.orderedPackets}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold">{row.totalPacketsEquiv.toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold">{formatNumber(row.totalPacketsEquiv)}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground hidden md:table-cell">{row.orderCount}</td>
                 </tr>
               ))

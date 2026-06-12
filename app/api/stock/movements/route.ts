@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 
 // GET /api/stock/movements?seedId=&batchNumber=&page=1&pageSize=50&dateFrom=&dateTo=
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     try {
       const { searchParams } = req.nextUrl;
       const seedId      = searchParams.get("seedId");
@@ -17,7 +17,7 @@ export const GET = withAuth(
       }
 
       const db = getSupabaseAdminClient();
-      const result = await stockMovementsQueries.getMovements(db, seedId, batchNumber, {
+      const result = await stockMovementsQueries.getMovements(db, orgId, seedId, batchNumber, {
         page:     Number(searchParams.get("page")     ?? 1),
         pageSize: Number(searchParams.get("pageSize") ?? 50),
         dateFrom: searchParams.get("dateFrom") ?? undefined,

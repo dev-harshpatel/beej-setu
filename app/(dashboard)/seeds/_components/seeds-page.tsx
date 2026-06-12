@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
@@ -16,62 +17,62 @@ import type { CropRow } from "@/types/database.types";
 const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 
 export function SeedsPage() {
-  const [isPending, startTransition] = useTransition();
-  const [initialized, setInitialized] = useState(false);
   const { hasPermission } = usePermissions();
   const canViewStock = hasPermission(PERMISSIONS.STOCK_MANAGE);
-  const loading = !initialized || isPending;
 
-  const [allProducts, setAllProducts] = useState<SeedProductWithCropRow[]>([]);
-  const [page, setPage]               = useState(1);
-  const [filters, setFilters]         = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
-  const [crops, setCrops]             = useState<CropRow[]>([]);
-  const [varieties, setVarieties]     = useState<string[]>([]);
+  const [page, setPage]     = useState(1);
+  const [filters, setFilters] = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
   const [selectedSeed, setSelectedSeed] = useState<SeedProductWithCropRow | null>(null);
 
-  // Fetch all seeds — no search param, cropId/variety filter server-side
-  const fetchProducts = useCallback(() => {
-    startTransition(async () => {
-      try {
-        const params = new URLSearchParams({ pageSize: "500" });
-        if (filters.cropId)  params.set("cropId",  filters.cropId);
-        if (filters.variety) params.set("variety", filters.variety);
+  // All seed products (server-side cropId/variety filter, client-side text search)
+  const { data: allProducts = [], isFetching: productsFetching } = useQuery<SeedProductWithCropRow[]>({
+    queryKey: ["seed-products", { cropId: filters.cropId, variety: filters.variety }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ pageSize: "500" });
+      if (filters.cropId)  params.set("cropId",  filters.cropId);
+      if (filters.variety) params.set("variety", filters.variety);
+      const res  = await fetch(`/api/seeds?${params}`);
+      const json = await res.json();
+      if (!json.success) throw new Error("Failed to fetch seeds");
+      return (json.data?.data ?? []) as SeedProductWithCropRow[];
+    },
+    placeholderData: keepPreviousData,
+  });
 
-        const res  = await fetch(`/api/seeds?${params}`);
-        const json = await res.json();
-        if (json.success) setAllProducts(json.data?.data ?? []);
-      } catch { /* silent */ } finally {
-        setInitialized(true);
-      }
-    });
-  }, [filters.cropId, filters.variety]);
+  const { data: crops = [] } = useQuery<CropRow[]>({
+    queryKey: ["crops"],
+    queryFn: async () => {
+      const res  = await fetch("/api/crops");
+      const json = await res.json();
+      return (json.data ?? []) as CropRow[];
+    },
+    staleTime: 10 * 60_000,
+  });
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  // Variety options for the current crop (disabled when no cropId)
+  const { data: varieties = [] } = useQuery<string[]>({
+    queryKey: ["seed-varieties", filters.cropId],
+    queryFn: async () => {
+      const res  = await fetch(`/api/seeds?cropId=${filters.cropId}&pageSize=200`);
+      const json = await res.json();
+      if (!json.success) return [];
+      return [
+        ...new Set<string>(
+          (json.data?.data ?? []).map((p: SeedProductWithCropRow) => p.variety),
+        ),
+      ].sort();
+    },
+    enabled: !!filters.cropId,
+    staleTime: 5 * 60_000,
+  });
 
-  useEffect(() => {
-    fetch("/api/crops")
-      .then((r) => r.json())
-      .then((j) => { if (j.success) setCrops(j.data ?? []); })
-      .catch(() => {});
-  }, []);
+  function handleFiltersChange(next: SeedFilters) {
+    const cropChanged = next.cropId !== filters.cropId;
+    setFilters(cropChanged ? { ...next, variety: "" } : next);
+    setPage(1);
+  }
 
-  useEffect(() => {
-    if (!filters.cropId) { setVarieties([]); return; }
-    fetch(`/api/seeds?cropId=${filters.cropId}&pageSize=200`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.success) {
-          const vs = [...new Set<string>((j.data?.data ?? []).map((p: SeedProductWithCropRow) => p.variety))].sort();
-          setVarieties(vs);
-        }
-      })
-      .catch(() => {});
-  }, [filters.cropId]);
-
-  // Reset page when search changes
-  useEffect(() => { setPage(1); }, [filters.search]);
-
-  // Client-side search filter (instant, no API call)
+  // Client-side text search (instant, no round-trips)
   const filteredProducts = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     if (!q) return allProducts;
@@ -90,12 +91,7 @@ export function SeedsPage() {
     [filteredProducts, page],
   );
 
-  function handleFiltersChange(next: SeedFilters) {
-    const cropChanged = next.cropId !== filters.cropId;
-    setFilters(cropChanged ? { ...next, variety: "" } : next);
-    setPage(1);
-  }
-
+  const loading    = productsFetching && allProducts.length === 0;
   const hasFilters = !!(filters.search || filters.cropId || filters.variety);
 
   return (

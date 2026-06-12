@@ -5,7 +5,7 @@ import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-quer
 import Link from "next/link";
 import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatDateMedium } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -20,7 +20,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { OrderDetailDrawer } from "./order-detail-drawer";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuth } from "@/hooks/use-auth";
-import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
+import { QUERY_KEYS } from "@/constants/query-keys";
 import type { OrderWithRelations } from "@/types/order.types";
 import {
   ORDER_STATUSES,
@@ -184,9 +184,7 @@ export function StaffOrders() {
           <div className="md:hidden flex flex-col gap-3">
             {orders.map((order) => {
               const itemCount = order.items?.length ?? 0;
-              const date = new Date(order.created_at).toLocaleDateString("en-IN", {
-                day: "2-digit", month: "short", year: "numeric",
-              });
+              const date = formatDateMedium(order.created_at);
               return (
               <div
                 key={order.id}
@@ -243,15 +241,11 @@ export function StaffOrders() {
                     <TableCell className="font-medium">
                       {order.dealer?.name ?? "—"}
                       <span className="block text-xs text-muted-foreground sm:hidden">
-                        {new Date(order.created_at).toLocaleDateString("en-IN", {
-                          day: "2-digit", month: "short", year: "numeric",
-                        })}
+                        {formatDateMedium(order.created_at)}
                       </span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm text-muted-foreground whitespace-nowrap">
-                      {new Date(order.created_at).toLocaleDateString("en-IN", {
-                        day: "2-digit", month: "short", year: "numeric",
-                      })}
+                      {formatDateMedium(order.created_at)}
                     </TableCell>
                     <TableCell>
                       <OrderStatusBadge status={order.status} />

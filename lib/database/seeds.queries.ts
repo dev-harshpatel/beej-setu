@@ -9,9 +9,12 @@ export type SeedProductWithCropRow = SeedProductRow & {
   stock: SeedStockSummary[];
 };
 
+const SEED_SELECT = "*, crop:crops(id, name), stock:seed_stock(bag_stock, packet_stock)";
+
 export const seedsQueries = {
   async getAll(
     db: SupabaseClient<Database>,
+    orgId: string,
     params?: PaginationParams & { cropId?: string; variety?: string; status?: string; excludeZeroStock?: boolean }
   ) {
     const page = params?.page ?? 1;
@@ -21,7 +24,8 @@ export const seedsQueries = {
 
     let query = db
       .from("seed_products")
-      .select("*, crop:crops(id, name), stock:seed_stock(bag_stock, packet_stock)", { count: "exact" })
+      .select(SEED_SELECT, { count: "exact" })
+      .eq("organization_id", orgId)
       .is("deleted_at", null);
 
     if (params?.search) {
@@ -43,6 +47,7 @@ export const seedsQueries = {
       const { data: stockData } = await db
         .from("seed_stock")
         .select("seed_id")
+        .eq("organization_id", orgId)
         .or("bag_stock.gt.0,packet_stock.gt.0");
       const seedIdsWithStock = [...new Set((stockData ?? []).map((s) => s.seed_id))];
       query = seedIdsWithStock.length > 0
@@ -67,22 +72,42 @@ export const seedsQueries = {
 
   async getById(
     db: SupabaseClient<Database>,
-    id: string
+    id: string,
+    orgId: string
   ): Promise<SeedProductWithCropRow | null> {
     const { data, error } = await db
       .from("seed_products")
-      .select("*, crop:crops(id, name), stock:seed_stock(bag_stock, packet_stock)")
+      .select(SEED_SELECT)
       .eq("id", id)
+      .eq("organization_id", orgId)
       .is("deleted_at", null)
       .single();
     if (error) throw error;
     return data as SeedProductWithCropRow;
   },
 
-  async getAllCrops(db: SupabaseClient<Database>): Promise<CropRow[]> {
+  // Cross-entity org check: returns which of the given seed ids exist in this org.
+  async getExistingIds(
+    db: SupabaseClient<Database>,
+    ids: string[],
+    orgId: string
+  ): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const { data, error } = await db
+      .from("seed_products")
+      .select("id")
+      .in("id", ids)
+      .eq("organization_id", orgId)
+      .is("deleted_at", null);
+    if (error) throw error;
+    return new Set((data ?? []).map((s) => s.id));
+  },
+
+  async getAllCrops(db: SupabaseClient<Database>, orgId: string): Promise<CropRow[]> {
     const { data, error } = await db
       .from("crops")
       .select("*")
+      .eq("organization_id", orgId)
       .order("name", { ascending: true });
     if (error) throw error;
     return data ?? [];

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { CheckCircleIcon, PencilIcon } from "lucide-react";
 import {
   Dialog,
@@ -22,6 +23,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { WhatsAppSharePanel } from "./whatsapp-share-panel";
 import { useAuthStore } from "@/store/auth.store";
 import { buildApprovalWhatsAppMessage } from "@/lib/whatsapp";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 
 interface BatchOption {
@@ -50,57 +52,48 @@ export function OrderConfirmModal({
   const [error, setError] = useState<string | null>(null);
   const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
 
-  // Batch selection state: { [itemId]: batchNumber }
+  // User batch overrides (starts empty; key-based remount resets on new order)
   const [batchSelections, setBatchSelections] = useState<Record<string, string>>({});
-  // Available batches per seed: { [seedId]: BatchOption[] }
-  const [availableBatches, setAvailableBatches] = useState<Record<string, BatchOption[]>>({});
-  const [loadingBatches, setLoadingBatches] = useState(false);
 
-  // Load available batches when modal opens
-  useEffect(() => {
-    if (!order || !open) return;
-    setBatchSelections({});
-    setAvailableBatches({});
+  const seedIds = useMemo(
+    () => [...new Set((order?.items ?? []).map((i) => i.seed_id))],
+    [order],
+  );
 
-    const seedIds = [...new Set((order.items ?? []).map((i) => i.seed_id))];
-    if (seedIds.length === 0) return;
+  const batchQueries = useQueries({
+    queries: seedIds.map((seedId) => ({
+      queryKey: ["stock-batches", seedId],
+      queryFn: async () => {
+        const res = await fetch(`/api/stock/batches?seedId=${seedId}`);
+        const json = await res.json();
+        return (json.data ?? []) as BatchOption[];
+      },
+      staleTime: 60_000,
+      enabled: open,
+    })),
+  });
 
-    setLoadingBatches(true);
-    Promise.all(
-      seedIds.map((seedId) =>
-        fetch(`/api/stock/batches?seedId=${seedId}`)
-          .then((r) => r.json())
-          .then((json) => ({ seedId, batches: (json.data ?? []) as BatchOption[] }))
-          .catch(() => ({ seedId, batches: [] as BatchOption[] }))
-      )
-    ).then((results) => {
-      const batchMap: Record<string, BatchOption[]> = {};
-      const selections: Record<string, string> = {};
+  const loadingBatches = batchQueries.some((q) => q.isPending);
 
-      for (const { seedId, batches } of results) {
-        batchMap[seedId] = batches;
-      }
-      // Pre-select first available (FIFO) batch per item
-      for (const item of order.items ?? []) {
-        const batches = batchMap[item.seed_id] ?? [];
-        if (batches.length > 0) selections[item.id] = batches[0].batch_number;
-      }
+  const availableBatches = useMemo(() => {
+    const map: Record<string, BatchOption[]> = {};
+    batchQueries.forEach((q, i) => { if (q.data) map[seedIds[i]] = q.data; });
+    return map;
+  }, [batchQueries, seedIds]);
 
-      setAvailableBatches(batchMap);
-      setBatchSelections(selections);
-      setLoadingBatches(false);
-    });
-  }, [order, open]);
+  // Effective selection: explicit override OR FIFO first batch per item
+  function effectiveBatch(item: { id: string; seed_id: string }): string {
+    return batchSelections[item.id] ?? availableBatches[item.seed_id]?.[0]?.batch_number ?? "";
+  }
 
   async function handleConfirm() {
     if (!order) return;
     setConfirming(true);
     setError(null);
     try {
-      // Build itemBatches array from selections
-      const itemBatches = Object.entries(batchSelections)
-        .filter(([, batchNumber]) => batchNumber)
-        .map(([itemId, batchNumber]) => ({ itemId, batchNumber }));
+      const itemBatches = (order.items ?? [])
+        .map((item) => ({ itemId: item.id, batchNumber: effectiveBatch(item) }))
+        .filter(({ batchNumber }) => batchNumber);
 
       const res = await fetch(`/api/orders/${order.id}/status`, {
         method: "PATCH",
@@ -126,7 +119,7 @@ export function OrderConfirmModal({
           seedName:    item.seed?.variety ?? "—",
           unit:        item.unit,
           quantity:    item.quantity,
-          batchNumber: batchSelections[item.id],
+          batchNumber: effectiveBatch(item),
         })),
       });
       setWhatsappMessage(msg);
@@ -198,9 +191,7 @@ export function OrderConfirmModal({
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-muted-foreground">Date</span>
               <span className="text-sm font-medium">
-                {new Date(order.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit", month: "short", year: "numeric",
-                })}
+                {formatDateMedium(order.created_at)}
               </span>
             </div>
           </div>
@@ -230,7 +221,7 @@ export function OrderConfirmModal({
                 <tbody>
                   {(order.items ?? []).map((item) => {
                     const batches = availableBatches[item.seed_id] ?? [];
-                    const selectedBatch = batchSelections[item.id] ?? "";
+                    const selectedBatch = effectiveBatch(item);
                     return (
                       <tr key={item.id} className="border-b border-border last:border-0">
                         <td className="px-3 py-2 font-medium">

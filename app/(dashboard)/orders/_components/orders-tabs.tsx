@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DownloadIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
@@ -28,6 +28,7 @@ import { ROLES } from "@/constants/roles.constants";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuthStore } from "@/store/auth.store";
 import type { OrderWithRelations } from "@/types/order.types";
+import { orderService } from "@/services/order.service";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
 import {
   ADMIN_TABS, ADMIN_TAB_STATUS,
@@ -75,9 +76,6 @@ export function OrdersTabs() {
   const resolvedStatuses: OrderStatusValue[] | undefined =
     isDispatchStaff && activeTab === "all" ? DISPATCH_VISIBLE_STATUSES : undefined;
 
-  // Clear selection when tab or filters change
-  useEffect(() => { setSelectedOrderIds(new Set()); }, [activeTab, dealerId, staffId, dateFrom, dateTo]);
-
   const { orders: rawOrders, total, loading, isRefreshing, invalidateOrders } = useOrdersData({
     page, pageSize, resolvedStatus, resolvedStatuses,
     dealerId, staffId, dateFrom, dateTo,
@@ -98,20 +96,21 @@ export function OrdersTabs() {
   const activeTabs = isDispatchStaff ? DISPATCH_TABS : ADMIN_TABS;
 
   // ── Handlers ──────────────────────────────────────────────
-  function handleTabChange(v: string) { setActiveTab(v as TabValue); setPage(1); }
+  function handleTabChange(v: string) { setActiveTab(v as TabValue); setPage(1); setSelectedOrderIds(new Set()); }
 
   function handleReset() {
     setSearch(""); setDealerId("");
     setStaffId(""); setDateFrom(""); setDateTo(""); setPage(1); setPageSize(PAGE_SIZE);
+    setSelectedOrderIds(new Set());
   }
 
   // ── Filter props (shared between mobile and desktop bars) ─
   const filterProps = {
     search,          onSearchChange: setSearch,
-    dealerId,        onDealerChange: (v: string) => { setDealerId(v); setPage(1); },
-    staffId,         onStaffChange:  (v: string) => { setStaffId(v);  setPage(1); },
-    dateFrom,        onDateFromChange: (v: string) => { setDateFrom(v); setPage(1); },
-    dateTo,          onDateToChange:   (v: string) => { setDateTo(v);   setPage(1); },
+    dealerId,        onDealerChange: (v: string) => { setDealerId(v); setPage(1); setSelectedOrderIds(new Set()); },
+    staffId,         onStaffChange:  (v: string) => { setStaffId(v);  setPage(1); setSelectedOrderIds(new Set()); },
+    dateFrom,        onDateFromChange: (v: string) => { setDateFrom(v); setPage(1); setSelectedOrderIds(new Set()); },
+    dateTo,          onDateToChange:   (v: string) => { setDateTo(v);   setPage(1); setSelectedOrderIds(new Set()); },
     onReset: handleReset,
     ...filterData,
   };
@@ -121,16 +120,8 @@ export function OrdersTabs() {
   }
 
   async function handleStatusChange(id: string, status: OrderStatusValue, partialReason?: PartialReason) {
-    const body: Record<string, unknown> = { status };
-    if (partialReason) body.partial_reason = partialReason;
-    const res  = await fetch(`/api/orders/${id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.message ?? "Status update failed");
-    if (json.data) setSelectedOrder(json.data as OrderWithRelations);
+    const updated = await orderService.updateStatus(id, status, { partialReason });
+    setSelectedOrder(updated);
     invalidateOrders();
   }
 
@@ -161,22 +152,12 @@ export function OrdersTabs() {
     fields: Record<string, string | undefined>,
     itemEdits?: Record<string, { quantity: number; unit: string }>,
   ) {
-    const body: Record<string, unknown> = {};
-    if (fields.notes !== undefined)  body.notes = fields.notes;
-    if (fields.delivery_date)        body.deliveryDate = fields.delivery_date;
-    if (itemEdits && Object.keys(itemEdits).length > 0) {
-      body.items = Object.entries(itemEdits).map(([itemId, { quantity, unit }]) => ({
-        id: itemId, quantity, unit,
-      }));
-    }
-    const res  = await fetch(`/api/orders/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.message ?? "Update failed");
-    if (json.data) setSelectedOrder(json.data as OrderWithRelations);
+    const updated = await orderService.updateWithItems(
+      id,
+      { notes: fields.notes, deliveryDate: fields.delivery_date },
+      itemEdits,
+    );
+    setSelectedOrder(updated);
     invalidateOrders();
   }
 
@@ -349,6 +330,7 @@ export function OrdersTabs() {
 
       {/* Batch approval modal */}
       <OrderConfirmModal
+        key={confirmOrder?.id ?? "none"}
         order={confirmOrder}
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}

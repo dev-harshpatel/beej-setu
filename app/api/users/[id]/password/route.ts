@@ -2,29 +2,23 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { usersQueries } from "@/lib/database/users.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
-import { PERMISSIONS, ROLES, type Role } from "@/constants/roles.constants";
+import { PERMISSIONS, type Role } from "@/constants/roles.constants";
+import { canManageRole } from "@/lib/api/role-authorization";
 import { encryptPassword, decryptPassword } from "@/lib/crypto/password-encryption";
-
-const STAFF_ROLES: Role[] = [ROLES.STAFF, ROLES.DISPATCH_STAFF];
 
 export const GET = withAuth(
   async (_req: NextRequest, ctx, auth) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const target = await usersQueries.getById(db, id);
+    const target = await usersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!target) return apiError("User not found", 404);
 
     if (target.id === auth.profile.id) {
       return apiError("Use the Settings page to manage your own password", 400);
     }
 
-    const allowedTargetRoles: Role[] =
-      auth.profile.role === ROLES.SUPER_ADMIN
-        ? [ROLES.ADMIN, ROLES.STAFF, ROLES.DISPATCH_STAFF]
-        : STAFF_ROLES;
-
-    if (!allowedTargetRoles.includes(target.role as Role)) {
+    if (!canManageRole(auth.profile.role as Role, target.role as Role)) {
       return apiError("You do not have permission to view this user's password", 403);
     }
 
@@ -61,15 +55,10 @@ export const PATCH = withAuth(
     }
 
     const db = getSupabaseAdminClient();
-    const target = await usersQueries.getById(db, id);
+    const target = await usersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!target) return apiError("User not found", 404);
 
-    const allowedTargetRoles: Role[] =
-      auth.profile.role === ROLES.SUPER_ADMIN
-        ? [ROLES.ADMIN, ROLES.STAFF, ROLES.DISPATCH_STAFF]
-        : STAFF_ROLES;
-
-    if (!allowedTargetRoles.includes(target.role as Role)) {
+    if (!canManageRole(auth.profile.role as Role, target.role as Role)) {
       return apiError("You do not have permission to change this user's password", 403);
     }
 

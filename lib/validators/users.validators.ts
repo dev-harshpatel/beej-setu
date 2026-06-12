@@ -18,3 +18,20 @@ export const createUserSchema = z.object({
 });
 
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
+
+// Admin setting another user's password — no current-password check
+// (that flow lives in settings.validators changePasswordSchema).
+export const adminChangePasswordSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .max(72),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export type AdminChangePasswordFormValues = z.infer<typeof adminChangePasswordSchema>;

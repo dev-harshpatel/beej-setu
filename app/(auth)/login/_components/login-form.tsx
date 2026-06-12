@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { loginSchema, type LoginFormValues } from "@/lib/validators/auth.validators";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/form/password-input";
 import {
   Field,
   FieldError,
@@ -20,8 +21,9 @@ import { cn } from "@/lib/utils";
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"form">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get("registered") === "1";
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -71,6 +73,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
           </p>
         </div>
 
+        {justRegistered && (
+          <div
+            role="status"
+            className="rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground"
+          >
+            Company registered successfully — sign in with your new admin account.
+          </div>
+        )}
+
         <Field data-invalid={!!errors.identifier}>
           <FieldLabel htmlFor="identifier">Email or Username</FieldLabel>
           <Input
@@ -87,29 +98,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Password</FieldLabel>
           </div>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="pr-10"
-              {...register("password")}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              tabIndex={-1}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? (
-                <EyeOffIcon className="size-4" />
-              ) : (
-                <EyeIcon className="size-4" />
-              )}
-            </button>
-          </div>
+          <PasswordInput
+            id="password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            {...register("password")}
+          />
           <FieldError errors={[errors.password]} />
         </Field>
 
@@ -127,6 +121,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
             {isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
         </Field>
+
+        <p className="text-center text-sm text-muted-foreground">
+          New company?{" "}
+          <Link href={ROUTES.AUTH.REGISTER} className="font-medium text-foreground underline-offset-4 hover:underline">
+            Register here
+          </Link>
+        </p>
       </FieldGroup>
     </form>
   );

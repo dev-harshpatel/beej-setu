@@ -13,7 +13,7 @@ export const GET = withAuth(
   async (_req: NextRequest, ctx, auth) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
-    const dealer = await dealersQueries.getById(db, id);
+    const dealer = await dealersQueries.getById(db, id, auth.orgId).catch(() => null);
 
     if (!dealer) return apiError("Dealer not found", 404);
     if (isOwnedByStaff(dealer.staff_id, auth.profile.id, auth.profile.role)) {
@@ -36,13 +36,13 @@ export const PATCH = withAuth(
     const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, notes, status } = parsed.data;
     const db = getSupabaseAdminClient();
 
-    const existing = await dealersQueries.getById(db, id);
+    const existing = await dealersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!existing) return apiError("Dealer not found", 404);
     if (isOwnedByStaff(existing.staff_id, auth.profile.id, auth.profile.role)) {
       return apiError("Forbidden", 403);
     }
 
-    const dealer = await dealersQueries.update(db, id, {
+    const dealer = await dealersQueries.update(db, id, auth.orgId, {
       ...(name !== undefined && { name }),
       ...(staffId !== undefined && { staff_id: staffId }),
       ...(contact !== undefined && { contact }),
@@ -64,13 +64,13 @@ export const DELETE = withAuth(
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const existing = await dealersQueries.getById(db, id);
+    const existing = await dealersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!existing) return apiError("Dealer not found", 404);
     if (isOwnedByStaff(existing.staff_id, auth.profile.id, auth.profile.role)) {
       return apiError("Forbidden", 403);
     }
 
-    await dealersQueries.delete(db, id);
+    await dealersQueries.delete(db, id, auth.orgId);
     return apiSuccess(null, "Dealer deleted");
   },
   PERMISSIONS.DEALERS_DELETE

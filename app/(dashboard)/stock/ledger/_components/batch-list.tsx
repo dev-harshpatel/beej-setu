@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, formatDateMedium } from "@/lib/utils";
 import type { BatchWithStatus } from "@/lib/database/stock-movements.queries";
 
 interface Props {
@@ -90,7 +90,7 @@ export function BatchList({ batches, loading, selectedBatchNumber, onSelect }: P
                 <TableCell className="text-right tabular-nums">{b.packet_stock}</TableCell>
                 <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
                   {b.first_movement_date
-                    ? new Date(b.first_movement_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                    ? formatDateMedium(b.first_movement_date)
                     : "—"}
                 </TableCell>
               </TableRow>

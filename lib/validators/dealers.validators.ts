@@ -1,7 +1,14 @@
 import { z } from "zod";
+import { toTitleCase } from "@/lib/utils/normalize";
+
+const titleCaseField = (schema: z.ZodString) =>
+  schema.transform(toTitleCase);
+
+const nullableTitleCase = (schema: z.ZodString) =>
+  schema.nullable().optional().transform((v) => (v ? toTitleCase(v) : v));
 
 export const createDealerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  name:    titleCaseField(z.string().min(2, "Name must be at least 2 characters").max(100)),
   staffId: z.string().uuid("Invalid staff ID").nullable().optional(),
   contact: z
     .string()
@@ -9,11 +16,11 @@ export const createDealerSchema = z.object({
     .regex(/^[0-9+\-\s(),/]+$/, "Only digits, +, -, spaces, commas and () allowed")
     .optional()
     .nullable(),
-  defaultTransport: z.string().max(100).nullable().optional(),
+  defaultTransport:           nullableTitleCase(z.string().max(100)),
   defaultDeliveryInstruction: z.string().max(500).nullable().optional(),
-  deliveryInstruction: z.string().max(500).nullable().optional(),
-  territory: z.string().max(100).nullable().optional(),
-  notes: z.string().max(1000).nullable().optional(),
+  deliveryInstruction:        z.string().max(500).nullable().optional(),
+  territory:                  nullableTitleCase(z.string().max(100)),
+  notes:                      z.string().max(1000).nullable().optional(),
 });
 
 export const updateDealerSchema = createDealerSchema.partial().extend({

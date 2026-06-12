@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
 
@@ -35,9 +36,7 @@ export async function exportOrdersToXlsx(filters: ExportFilters): Promise<void> 
       "Center":       order.center ?? "",
       "Transport":    order.transport_name ?? "",
       "Status":       order.status,
-      "Date":         new Date(order.created_at).toLocaleDateString("en-IN", {
-        day: "2-digit", month: "short", year: "numeric",
-      }),
+      "Date":         formatDateMedium(order.created_at),
       "Crop":         item.seed?.crops?.name ?? "",
       "Variety":      item.seed?.variety ?? "",
       "Pack Size":    item.seed?.pack_size ?? "",

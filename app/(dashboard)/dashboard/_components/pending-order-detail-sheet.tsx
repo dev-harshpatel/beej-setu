@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "@/app/(dashboard)/orders/_components/order-status-badge";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 
 interface Props {
@@ -68,18 +69,14 @@ export function PendingOrderDetailSheet({ order, open, onClose, onEdit, onApprov
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Order Date</p>
               <p className="font-medium">
-                {new Date(order.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit", month: "short", year: "numeric",
-                })}
+                {formatDateMedium(order.created_at)}
               </p>
             </div>
             {order.delivery_date && (
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Delivery Date</p>
                 <p className="font-medium">
-                  {new Date(order.delivery_date).toLocaleDateString("en-IN", {
-                    day: "2-digit", month: "short", year: "numeric",
-                  })}
+                  {formatDateMedium(order.delivery_date)}
                 </p>
               </div>
             )}

@@ -12,7 +12,7 @@ export type SeedAvailability = {
 
 // GET /api/stock/availability?seedIds=id1,id2,...
 export const GET = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     const raw = req.nextUrl.searchParams.get("seedIds") ?? "";
     const seedIds = raw.split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -23,6 +23,7 @@ export const GET = withAuth(
     const { data, error } = await db
       .from("seed_stock")
       .select("seed_id, bag_stock, packet_stock, seed_product:seed_products!inner(packets_per_bag)")
+      .eq("organization_id", orgId)
       .in("seed_id", seedIds);
 
     if (error) {

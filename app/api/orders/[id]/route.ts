@@ -8,7 +8,7 @@ export const GET = withAuth(
   async (_req: NextRequest, ctx, auth) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
-    const order = await ordersQueries.getById(db, id);
+    const order = await ordersQueries.getById(db, id, auth.orgId).catch(() => null);
 
     if (!order) return apiError("Order not found", 404);
     if (auth.profile.role === ROLES.STAFF && order.staff_id !== auth.profile.id) {
@@ -24,13 +24,13 @@ export const DELETE = withAuth(
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const existing = await ordersQueries.getById(db, id);
+    const existing = await ordersQueries.getById(db, id, auth.orgId).catch(() => null);
     if (!existing) return apiError("Order not found", 404);
     if (auth.profile.role === ROLES.STAFF && existing.staff_id !== auth.profile.id) {
       return apiError("Forbidden", 403);
     }
 
-    await ordersQueries.delete(db, id);
+    await ordersQueries.delete(db, id, auth.orgId);
     return apiSuccess(null, "Order deleted");
   },
   PERMISSIONS.ORDERS_DELETE
@@ -43,17 +43,17 @@ export const PATCH = withAuth(
       const body = await req.json().catch(() => ({}));
       const db = getSupabaseAdminClient();
 
-      const existing = await ordersQueries.getById(db, id);
+      const existing = await ordersQueries.getById(db, id, auth.orgId).catch(() => null);
       if (!existing) return apiError("Order not found", 404);
       if (auth.profile.role === ROLES.STAFF && existing.staff_id !== auth.profile.id) {
         return apiError("Forbidden", 403);
       }
 
       if (Array.isArray(body.items) && body.items.length > 0) {
-        await ordersQueries.updateItems(db, body.items);
+        await ordersQueries.updateItems(db, auth.orgId, body.items);
       }
 
-      const order = await ordersQueries.update(db, id, {
+      const order = await ordersQueries.update(db, id, auth.orgId, {
         notes: body.notes,
         delivery_date: body.deliveryDate,
       });

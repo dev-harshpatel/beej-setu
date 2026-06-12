@@ -6,7 +6,7 @@ import { ORDER_STATUSES } from "@/constants/order-status.constants";
 
 // GET /api/challans/:id — fetch challan by order_id
 export const GET = withAuth(
-  async (_req: NextRequest, ctx) => {
+  async (_req: NextRequest, ctx, { orgId }) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
@@ -14,6 +14,7 @@ export const GET = withAuth(
       .from("challans")
       .select("*")
       .eq("order_id", id)
+      .eq("organization_id", orgId)
       .maybeSingle();
 
     if (error) return apiError("Failed to fetch challan", 500);
@@ -26,7 +27,7 @@ export const GET = withAuth(
 // PATCH /api/challans/:id
 // Updates transport_dispatch_date and advances order to TRANSPORT_DISPATCHED.
 export const PATCH = withAuth(
-  async (req: NextRequest, ctx) => {
+  async (req: NextRequest, ctx, { orgId }) => {
     const { id } = await ctx.params;
     const body = await req.json().catch(() => ({}));
 
@@ -42,6 +43,7 @@ export const PATCH = withAuth(
       .from("challans")
       .select("id, order_id")
       .eq("order_id", id)
+      .eq("organization_id", orgId)
       .single();
 
     if (fetchErr || !challan) {
@@ -69,6 +71,7 @@ export const PATCH = withAuth(
           db.from("order_items")
             .update({ batch_number: batchNumber, batch_change_reason: changeReason || null })
             .eq("id", itemId)
+            .eq("organization_id", orgId)
             .throwOnError()
         )
       );
@@ -78,7 +81,8 @@ export const PATCH = withAuth(
     await db
       .from("orders")
       .update({ status: ORDER_STATUSES.TRANSPORT_DISPATCHED })
-      .eq("id", challan.order_id);
+      .eq("id", challan.order_id)
+      .eq("organization_id", orgId);
 
     return apiSuccess(updated, "Transport dispatch date saved — order marked Transport Dispatched");
   },

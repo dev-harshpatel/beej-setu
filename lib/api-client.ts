@@ -35,4 +35,17 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Extract a user-facing message from an apiClient (axios) error:
+ * first zod field error if present, else the API envelope message, else fallback.
+ */
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  const e = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
+  const data = e?.response?.data;
+  const firstFieldError = data?.errors
+    ? Object.values(data.errors)[0]?.[0]
+    : undefined;
+  return firstFieldError ?? data?.message ?? fallback;
+}
+
 export default apiClient;

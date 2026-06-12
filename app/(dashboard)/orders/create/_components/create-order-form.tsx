@@ -20,7 +20,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
 import {
   Popover,
@@ -421,7 +420,7 @@ export function CreateOrderForm() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {cropRows.map((row, idx) => (
+            {cropRows.map((row) => (
               <div
                 key={row.id}
                 className="relative rounded-lg border border-border bg-background p-3 sm:p-4 flex flex-col gap-3"

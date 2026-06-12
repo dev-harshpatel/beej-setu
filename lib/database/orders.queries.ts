@@ -11,11 +11,12 @@ const ORDER_SELECT = `
 `;
 
 export const ordersQueries = {
-  async getById(db: SupabaseClient<Database>, id: string) {
+  async getById(db: SupabaseClient<Database>, id: string, orgId: string) {
     const { data, error } = await db
       .from("orders")
       .select(ORDER_SELECT)
       .eq("id", id)
+      .eq("organization_id", orgId)
       .single();
     if (error) throw error;
     return data;
@@ -23,6 +24,7 @@ export const ordersQueries = {
 
   async getAll(
     db: SupabaseClient<Database>,
+    orgId: string,
     params?: PaginationParams & { status?: string; statuses?: string[]; dealerId?: string; staffId?: string; dateFrom?: string; dateTo?: string }
   ) {
     const page = params?.page ?? 1;
@@ -32,15 +34,16 @@ export const ordersQueries = {
 
     let query = db
       .from("orders")
-      .select(ORDER_SELECT, { count: "exact" });
+      .select(ORDER_SELECT, { count: "exact" })
+      .eq("organization_id", orgId);
 
     if (params?.search) {
       const s = `%${params.search}%`;
 
       // Resolve dealer/staff IDs matching the search term in parallel
       const [{ data: dealerMatches }, { data: staffMatches }] = await Promise.all([
-        db.from("dealers").select("id").ilike("name", s),
-        db.from("profiles").select("id").ilike("name", s),
+        db.from("dealers").select("id").eq("organization_id", orgId).ilike("name", s),
+        db.from("profiles").select("id").eq("organization_id", orgId).ilike("name", s),
       ]);
 
       const dealerIds = (dealerMatches ?? []).map((d) => d.id);
@@ -83,12 +86,13 @@ export const ordersQueries = {
 
   async create(
     db: SupabaseClient<Database>,
-    order: Database["public"]["Tables"]["orders"]["Insert"],
-    items: Database["public"]["Tables"]["order_items"]["Insert"][]
+    orgId: string,
+    order: Omit<Database["public"]["Tables"]["orders"]["Insert"], "organization_id">,
+    items: Omit<Database["public"]["Tables"]["order_items"]["Insert"], "organization_id">[]
   ) {
     const { data: orderData, error: orderError } = await db
       .from("orders")
-      .insert(order)
+      .insert({ ...order, organization_id: orgId })
       .select()
       .single();
     if (orderError) throw orderError;
@@ -96,6 +100,7 @@ export const ordersQueries = {
     const itemsWithOrderId = items.map((item) => ({
       ...item,
       order_id: orderData.id,
+      organization_id: orgId,
     }));
 
     const { error: itemsError } = await db
@@ -103,18 +108,20 @@ export const ordersQueries = {
       .insert(itemsWithOrderId);
     if (itemsError) throw itemsError;
 
-    return this.getById(db, orderData.id);
+    return this.getById(db, orderData.id, orgId);
   },
 
   async updateStatus(
     db: SupabaseClient<Database>,
     id: string,
+    orgId: string,
     status: OrderRow["status"]
   ) {
     const { data, error } = await db
       .from("orders")
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("organization_id", orgId)
       .select(ORDER_SELECT)
       .single();
     if (error) throw error;
@@ -124,12 +131,14 @@ export const ordersQueries = {
   async update(
     db: SupabaseClient<Database>,
     id: string,
+    orgId: string,
     payload: Database["public"]["Tables"]["orders"]["Update"]
   ) {
     const { data, error } = await db
       .from("orders")
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("organization_id", orgId)
       .select(ORDER_SELECT)
       .single();
     if (error) throw error;
@@ -138,19 +147,27 @@ export const ordersQueries = {
 
   async updateItems(
     db: SupabaseClient<Database>,
+    orgId: string,
     items: { id: string; quantity: number; unit: "Bag" | "Packet" | "Box" }[]
   ) {
     await Promise.all(
       items.map(({ id, quantity, unit }) =>
-        db.from("order_items").update({ quantity, unit }).eq("id", id).throwOnError()
+        db
+          .from("order_items")
+          .update({ quantity, unit })
+          .eq("id", id)
+          .eq("organization_id", orgId)
+          .throwOnError()
       )
     );
   },
 
-  async getNextSerial(db: SupabaseClient<Database>, fyCode: string): Promise<number> {
+  // Order numbers are sequential per organization, not global.
+  async getNextSerial(db: SupabaseClient<Database>, orgId: string, fyCode: string): Promise<number> {
     const { data } = await db
       .from("orders")
       .select("order_number")
+      .eq("organization_id", orgId)
       .like("order_number", `FS-${fyCode}-%`)
       .order("order_number", { ascending: false })
       .limit(1);
@@ -161,31 +178,44 @@ export const ordersQueries = {
     return isNaN(serial) ? 1 : serial + 1;
   },
 
-  async delete(db: SupabaseClient<Database>, id: string): Promise<void> {
-    const { error } = await db.from("orders").delete().eq("id", id);
+  async delete(db: SupabaseClient<Database>, id: string, orgId: string): Promise<void> {
+    const { error } = await db
+      .from("orders")
+      .delete()
+      .eq("id", id)
+      .eq("organization_id", orgId);
     if (error) throw error;
   },
 
-  async bulkDelete(db: SupabaseClient<Database>, ids: string[]): Promise<void> {
-    const { error } = await db.from("orders").delete().in("id", ids);
+  async bulkDelete(db: SupabaseClient<Database>, ids: string[], orgId: string): Promise<void> {
+    const { error } = await db
+      .from("orders")
+      .delete()
+      .in("id", ids)
+      .eq("organization_id", orgId);
     if (error) throw error;
   },
 
   // Legacy alias kept so any other callers don't break during migration.
-  async confirmWithStockDeduction(db: SupabaseClient<Database>, id: string) {
-    return this.approveWithStockDeduction(db, id, "APPROVED");
+  async confirmWithStockDeduction(db: SupabaseClient<Database>, id: string, orgId: string) {
+    return this.approveWithStockDeduction(db, id, orgId, "APPROVED");
   },
 
   async approveWithStockDeduction(
     db: SupabaseClient<Database>,
     id: string,
+    orgId: string,
     status: OrderStatusValue,
   ) {
+    // The DB-side org guard in approve_order() is skipped for the service-role
+    // client, so verify ownership here before invoking the RPC.
+    await this.getById(db, id, orgId);
+
     const { error } = await db.rpc("approve_order", {
       p_order_id: id,
       p_status: status,
     });
     if (error) throw error;
-    return this.getById(db, id);
+    return this.getById(db, id, orgId);
   },
 };

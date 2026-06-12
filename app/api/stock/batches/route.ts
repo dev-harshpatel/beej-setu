@@ -7,7 +7,7 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 // GET /api/stock/batches?seedId=<uuid>           — batches for a specific seed (approval/challan)
 // GET /api/stock/batches?cropId=&variety=&...    — filtered batch list (stock ledger)
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     try {
       const { searchParams } = req.nextUrl;
       const db = getSupabaseAdminClient();
@@ -19,6 +19,7 @@ export const GET = withAuth(
           .from("seed_stock")
           .select("batch_number, bag_stock, packet_stock")
           .eq("seed_id", seedId)
+          .eq("organization_id", orgId)
           .or("bag_stock.gt.0,packet_stock.gt.0")
           .order("created_at", { ascending: true });
         if (error) throw error;
@@ -26,7 +27,7 @@ export const GET = withAuth(
       }
 
       // Filtered batch list for stock ledger
-      const batches = await stockMovementsQueries.getBatches(db, {
+      const batches = await stockMovementsQueries.getBatches(db, orgId, {
         cropId:      searchParams.get("cropId")      ?? undefined,
         variety:     searchParams.get("variety")     ?? undefined,
         packSize:    searchParams.get("packSize")     ?? undefined,

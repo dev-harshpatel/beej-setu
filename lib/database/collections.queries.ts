@@ -15,11 +15,13 @@ const COLLECTION_SELECT = `
 export const collectionsQueries = {
   async getAll(
     db: SupabaseClient<Database>,
+    orgId: string,
     params?: { staffId?: string; dealerId?: string; dateFrom?: string; dateTo?: string }
   ): Promise<CollectionWithRelations[]> {
     let query = db
       .from("collections")
       .select(COLLECTION_SELECT)
+      .eq("organization_id", orgId)
       .order("collection_date", { ascending: false })
       .order("created_at",      { ascending: false });
 
@@ -35,11 +37,12 @@ export const collectionsQueries = {
 
   async create(
     db: SupabaseClient<Database>,
-    payload: Database["public"]["Tables"]["collections"]["Insert"]
+    orgId: string,
+    payload: Omit<Database["public"]["Tables"]["collections"]["Insert"], "organization_id">
   ): Promise<CollectionWithRelations> {
     const { data, error } = await db
       .from("collections")
-      .insert(payload)
+      .insert({ ...payload, organization_id: orgId })
       .select(COLLECTION_SELECT)
       .single();
     if (error) throw error;
@@ -49,31 +52,39 @@ export const collectionsQueries = {
   async update(
     db: SupabaseClient<Database>,
     id: string,
+    orgId: string,
     payload: Database["public"]["Tables"]["collections"]["Update"]
   ): Promise<CollectionWithRelations> {
     const { data, error } = await db
       .from("collections")
       .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("organization_id", orgId)
       .select(COLLECTION_SELECT)
       .single();
     if (error) throw error;
     return data as CollectionWithRelations;
   },
 
-  async delete(db: SupabaseClient<Database>, id: string): Promise<void> {
-    const { error } = await db.from("collections").delete().eq("id", id);
+  async delete(db: SupabaseClient<Database>, id: string, orgId: string): Promise<void> {
+    const { error } = await db
+      .from("collections")
+      .delete()
+      .eq("id", id)
+      .eq("organization_id", orgId);
     if (error) throw error;
   },
 
   async getById(
     db: SupabaseClient<Database>,
-    id: string
+    id: string,
+    orgId: string
   ): Promise<CollectionWithRelations | null> {
     const { data, error } = await db
       .from("collections")
       .select(COLLECTION_SELECT)
       .eq("id", id)
+      .eq("organization_id", orgId)
       .maybeSingle();
     if (error) throw error;
     return data as CollectionWithRelations | null;

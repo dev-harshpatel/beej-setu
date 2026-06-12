@@ -5,7 +5,8 @@ import { useAuthStore } from "@/store/auth.store";
 
 // Recovers the user profile from the active Supabase session when the
 // Zustand store is hydrated but has no user (e.g. localStorage was cleared
-// or the user arrived via a Supabase email link instead of the login form).
+// or the user arrived via a Supabase email link instead of the login form),
+// or when the persisted user predates multi-tenancy and lacks organization.
 export function AuthSync() {
   const hydrated = useAuthStore((s) => s._hasHydrated);
   const user = useAuthStore((s) => s.user);
@@ -13,7 +14,7 @@ export function AuthSync() {
   const attempted = useRef(false);
 
   useEffect(() => {
-    if (!hydrated || user || attempted.current) return;
+    if (!hydrated || (user && user.organization) || attempted.current) return;
     attempted.current = true;
 
     fetch("/api/auth/me")

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { usersQueries } from "@/lib/database/users.queries";
-import type { ProfileRow } from "@/types/database.types";
+import { usersQueries, type ProfileWithOrgRow } from "@/lib/database/users.queries";
 import type { Permission } from "@/constants/roles.constants";
 import { ROLE_PERMISSIONS } from "@/constants/roles.constants";
 import type { ApiResponse } from "@/types/common.types";
 
 export interface AuthGuardResult {
-  profile: ProfileRow;
+  profile: ProfileWithOrgRow;
+  /** Shorthand for profile.organization_id — every tenant-scoped query needs it. */
+  orgId: string;
 }
 
 export type RouteHandler<T = unknown> = (
@@ -38,11 +39,19 @@ export function withAuth<T = unknown>(
       );
     }
 
-    const profile = await usersQueries.getById(supabase, user.id);
+    const profile = await usersQueries.getByIdWithOrg(supabase, user.id).catch(() => null);
 
     if (!profile || !profile.is_active) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, message: "Account is inactive or not found", data: null },
+        { status: 403 }
+      );
+    }
+
+    // Tenant kill-switch: a suspended/cancelled organization loses all access.
+    if (profile.organization.status !== "ACTIVE") {
+      return NextResponse.json<ApiResponse<null>>(
+        { success: false, message: "Organization is not active. Contact support.", data: null },
         { status: 403 }
       );
     }
@@ -57,7 +66,7 @@ export function withAuth<T = unknown>(
       }
     }
 
-    return handler(req, context, { profile });
+    return handler(req, context, { profile, orgId: profile.organization_id });
   };
 }
 

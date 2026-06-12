@@ -13,14 +13,14 @@ export const GET = withAuth(async (_req, _ctx, auth) => {
     { count: totalStaff },
     { count: totalAdmins },
   ] = await Promise.all([
-    db.from("orders").select("*", { count: "exact", head: true }),
-    db.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
-    db.from("dealers").select("*", { count: "exact", head: true }).eq("status", "ACTIVE"),
+    db.from("orders").select("*", { count: "exact", head: true }).eq("organization_id", auth.orgId),
+    db.from("orders").select("*", { count: "exact", head: true }).eq("organization_id", auth.orgId).eq("status", "PENDING"),
+    db.from("dealers").select("*", { count: "exact", head: true }).eq("organization_id", auth.orgId).eq("status", "ACTIVE"),
     hasDashboardView
-      ? db.from("profiles").select("*", { count: "exact", head: true }).eq("role", ROLES.STAFF).eq("is_active", true)
+      ? db.from("profiles").select("*", { count: "exact", head: true }).eq("organization_id", auth.orgId).eq("role", ROLES.STAFF).eq("is_active", true)
       : Promise.resolve({ count: null }),
     hasDashboardView
-      ? db.from("profiles").select("*", { count: "exact", head: true }).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true)
+      ? db.from("profiles").select("*", { count: "exact", head: true }).eq("organization_id", auth.orgId).in("role", [ROLES.ADMIN, ROLES.SUPER_ADMIN]).eq("is_active", true)
       : Promise.resolve({ count: null }),
   ]);
 

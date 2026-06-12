@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, BanknoteIcon } from "lucide-react";
+import { BanknoteIcon } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Combobox } from "@/components/ui/combobox";
+import { ReportFilterBar } from "../../_components/report-filter-bar";
+import { StatChip } from "../../_components/stat-chip";
 import {
   Table,
   TableBody,
@@ -17,17 +18,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { CollectionWithRelations } from "@/lib/database/collections.queries";
+import { formatCurrencyWhole as fmt, formatDateMedium } from "@/lib/utils";
+import { PAYMENT_MODE_LABELS } from "@/constants/payment.constants";
+import type { PaymentMode } from "@/types/database.types";
 
 // ── Payment mode helpers ──────────────────────────────────────────────────────
-type PaymentMode = "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
-
-const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
-  CASH:          "Cash",
-  BANK_TRANSFER: "Bank Transfer",
-  UPI:           "UPI",
-  CHEQUE:        "Cheque",
-};
-
 const PAYMENT_MODE_CLASSES: Record<PaymentMode, string> = {
   CASH:          "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   BANK_TRANSFER: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -42,10 +37,6 @@ function PaymentBadge({ mode }: { mode: string }) {
       {PAYMENT_MODE_LABELS[mode as PaymentMode] ?? mode}
     </span>
   );
-}
-
-function fmt(amount: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 }
 
 // ── Dealer type (from /api/dealers list) ──────────────────────────────────────
@@ -136,7 +127,12 @@ export default function CollectionsReportPage() {
         </div>
 
         {/* ── Filters ───────────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-3 items-end rounded-lg border border-border p-4 bg-card">
+        <ReportFilterBar
+          onGenerate={handleGenerate}
+          onClear={handleClear}
+          loading={isFetching}
+          hasReport={hasReport}
+        >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">Dealer (optional)</label>
             <Combobox
@@ -171,40 +167,20 @@ export default function CollectionsReportPage() {
               className="w-40"
             />
           </div>
-
-          <div className="flex gap-2 items-end">
-            <Button onClick={handleGenerate} disabled={isFetching}>
-              {isFetching ? "Loading…" : "Generate Report"}
-            </Button>
-            {hasReport && (
-              <Button variant="ghost" size="icon" onClick={handleClear} title="Clear report">
-                <XIcon className="size-4" />
-              </Button>
-            )}
-          </div>
-        </div>
+        </ReportFilterBar>
 
         {/* ── Summary chips ─────────────────────────────────────────── */}
         {hasReport && !isFetching && rows.length > 0 && (
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-              {rows.length} collection{rows.length !== 1 ? "s" : ""}
-            </div>
-            <div className="rounded-md bg-accent/20 text-accent-foreground px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5">
+            <StatChip>{rows.length} collection{rows.length !== 1 ? "s" : ""}</StatChip>
+            <StatChip accent className="font-semibold flex items-center gap-1.5">
               <BanknoteIcon className="size-3.5" />
               {fmt(totalAmount)} total
-            </div>
+            </StatChip>
             {!selectedDealer && (
-              <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-                {uniqueDealers} dealer{uniqueDealers !== 1 ? "s" : ""}
-              </div>
+              <StatChip>{uniqueDealers} dealer{uniqueDealers !== 1 ? "s" : ""}</StatChip>
             )}
-            {selectedDealer && (
-              <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-                {selectedDealer.name}
-              </div>
-            )}
-            {/* Payment mode breakdown */}
+            {selectedDealer && <StatChip>{selectedDealer.name}</StatChip>}
             {(Object.entries(byMode) as [PaymentMode, number][]).map(([mode, amount]) => (
               <div key={mode} className={`rounded-md px-3 py-1.5 text-xs font-medium ${PAYMENT_MODE_CLASSES[mode] ?? "bg-muted"}`}>
                 {PAYMENT_MODE_LABELS[mode] ?? mode}: {fmt(amount)}
@@ -241,9 +217,7 @@ export default function CollectionsReportPage() {
                     {rows.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {new Date(row.collection_date).toLocaleDateString("en-IN", {
-                            day: "2-digit", month: "short", year: "numeric",
-                          })}
+                          {formatDateMedium(row.collection_date)}
                         </TableCell>
                         <TableCell className="font-medium text-sm">
                           {row.dealer?.name ?? "—"}

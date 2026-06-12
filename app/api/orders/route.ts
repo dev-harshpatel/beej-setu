@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ordersQueries } from "@/lib/database/orders.queries";
 import { dealersQueries } from "@/lib/database/dealers.queries";
+import { seedsQueries } from "@/lib/database/seeds.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { generateOrderNumber, getFinancialYear } from "@/lib/utils";
@@ -18,7 +19,7 @@ export const GET = withAuth(
       : (searchParams.get("staffId") ?? undefined);
 
     const statusesParam = searchParams.get("statuses");
-    const result = await ordersQueries.getAll(db, {
+    const result = await ordersQueries.getAll(db, auth.orgId, {
       page: Number(searchParams.get("page") ?? 1),
       pageSize: Number(searchParams.get("pageSize") ?? 20),
       search: searchParams.get("search") ?? undefined,
@@ -36,7 +37,7 @@ export const GET = withAuth(
 );
 
 export const POST = withAuth(
-  async (req: NextRequest, _ctx, { profile }) => {
+  async (req: NextRequest, _ctx, { profile, orgId }) => {
     try {
       const body = await req.json().catch(() => null);
       if (!body?.dealerId || !Array.isArray(body?.items) || body.items.length === 0) {
@@ -45,17 +46,26 @@ export const POST = withAuth(
 
       const db = getSupabaseAdminClient();
 
-      const dealer = await dealersQueries.getById(db, body.dealerId);
+      // Org-scoped getById doubles as the cross-tenant check for dealerId
+      const dealer = await dealersQueries.getById(db, body.dealerId, orgId).catch(() => null);
       if (!dealer) return apiError("Dealer not found", 404);
       if (!ORDER_ELIGIBLE_STATUSES.includes(dealer.status as typeof ORDER_ELIGIBLE_STATUSES[number])) {
         return apiError(`Orders can only be placed for active dealers (current status: ${dealer.status})`, 422);
       }
 
+      const seedIds: string[] = body.items.map((item: { seedId: string }) => item.seedId);
+      const validSeedIds = await seedsQueries.getExistingIds(db, seedIds, orgId);
+      const invalidSeedId = seedIds.find((sid) => !validSeedIds.has(sid));
+      if (invalidSeedId) {
+        return apiError(`Seed product ${invalidSeedId} not found`, 404);
+      }
+
       const fy = getFinancialYear();
-      const serial = await ordersQueries.getNextSerial(db, fy);
+      const serial = await ordersQueries.getNextSerial(db, orgId, fy);
 
       const order = await ordersQueries.create(
         db,
+        orgId,
         {
           order_number:    generateOrderNumber(serial),
           dealer_id:       body.dealerId,

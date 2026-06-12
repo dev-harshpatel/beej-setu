@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PencilIcon, Trash2Icon, HistoryIcon } from "lucide-react";
 import { ROUTES } from "@/constants/routes.constants";
+import { formatDateMedium } from "@/lib/utils";
 import type { SeedStockWithDetails } from "@/lib/database/stock.queries";
 
 interface StockTableProps {
@@ -74,7 +75,7 @@ export function StockTable({ rows, loading, canManage, onEdit, onDelete }: Stock
                   {r.updater?.name ?? "—"}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell text-muted-foreground text-xs">
-                  {new Date(r.updated_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                  {formatDateMedium(r.updated_at)}
                 </TableCell>
                 {canManage && (
                   <TableCell>

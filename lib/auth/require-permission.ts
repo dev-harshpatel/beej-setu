@@ -13,9 +13,10 @@ export async function requirePermission(permission: Permission) {
 
   if (!user) notFound();
 
-  const profile = await usersQueries.getById(supabase, user.id);
+  const profile = await usersQueries.getByIdWithOrg(supabase, user.id).catch(() => null);
 
   if (!profile || !profile.is_active) notFound();
+  if (profile.organization.status !== "ACTIVE") notFound();
 
   const permissions = ROLE_PERMISSIONS[profile.role] ?? [];
   if (!permissions.includes(permission)) notFound();

@@ -6,13 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/utils";
+import { PAYMENT_MODE_LABELS } from "@/constants/payment.constants";
+import type { PaymentMode } from "@/types/database.types";
 import type { CollectionWithRelations } from "@/lib/database/collections.queries";
-
-type PaymentMode = "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
-
-const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
-  CASH: "Cash", BANK_TRANSFER: "Bank Transfer", UPI: "UPI", CHEQUE: "Cheque",
-};
 
 const BADGE_CLS: Record<PaymentMode, string> = {
   CASH:          "bg-success/10 text-success border-success/20",
@@ -99,7 +96,7 @@ export function CollectionsTable({ collections, loading, onEdit, onDelete }: Pro
               </TableCell>
               <TableCell><PaymentBadge mode={col.payment_mode as PaymentMode} /></TableCell>
               <TableCell className="text-right tabular-nums font-semibold text-sm">
-                ₹{col.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(col.amount)}
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-1">
@@ -128,7 +125,7 @@ export function CollectionsTable({ collections, loading, onEdit, onDelete }: Pro
         <span className="text-xs text-muted-foreground">
           Total:&nbsp;
           <span className="font-semibold text-foreground tabular-nums">
-            ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(totalAmount)}
           </span>
         </span>
       </div>

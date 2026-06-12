@@ -3,18 +3,17 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
 import {
   changePasswordSchema,
   type ChangePasswordFormValues,
 } from "@/lib/validators/settings.validators";
 import { settingsService } from "@/services/settings.service";
+import { getApiErrorMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/form/password-input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 
 export function SettingsPasswordForm() {
-  const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -27,10 +26,6 @@ export function SettingsPasswordForm() {
     resolver: zodResolver(changePasswordSchema),
   });
 
-  function toggleShow(field: keyof typeof show) {
-    setShow((prev) => ({ ...prev, [field]: !prev[field] }));
-  }
-
   async function onSubmit(values: ChangePasswordFormValues) {
     setServerError(null);
     setSuccess(false);
@@ -42,14 +37,7 @@ export function SettingsPasswordForm() {
       reset();
       setSuccess(true);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
-      const fieldErrors = e?.response?.data?.errors;
-      if (fieldErrors) {
-        const first = Object.values(fieldErrors)[0]?.[0];
-        setServerError(first ?? "Failed to update password");
-      } else {
-        setServerError(e?.response?.data?.message ?? "Failed to update password");
-      }
+      setServerError(getApiErrorMessage(err, "Failed to update password"));
     }
   }
 
@@ -58,58 +46,34 @@ export function SettingsPasswordForm() {
       <FieldGroup>
         <Field data-invalid={!!errors.currentPassword}>
           <FieldLabel htmlFor="current-password">Current Password</FieldLabel>
-          <div className="relative">
-            <Input
-              id="current-password"
-              type={show.current ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="pr-10"
-              {...register("currentPassword")}
-            />
-            <ToggleVisibility
-              visible={show.current}
-              onToggle={() => toggleShow("current")}
-            />
-          </div>
+          <PasswordInput
+            id="current-password"
+            placeholder="••••••••"
+            autoComplete="current-password"
+            {...register("currentPassword")}
+          />
           <FieldError errors={[errors.currentPassword]} />
         </Field>
 
         <Field data-invalid={!!errors.newPassword}>
           <FieldLabel htmlFor="new-password">New Password</FieldLabel>
-          <div className="relative">
-            <Input
-              id="new-password"
-              type={show.next ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              className="pr-10"
-              {...register("newPassword")}
-            />
-            <ToggleVisibility
-              visible={show.next}
-              onToggle={() => toggleShow("next")}
-            />
-          </div>
+          <PasswordInput
+            id="new-password"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            {...register("newPassword")}
+          />
           <FieldError errors={[errors.newPassword]} />
         </Field>
 
         <Field data-invalid={!!errors.confirmNewPassword}>
           <FieldLabel htmlFor="confirm-password">Confirm New Password</FieldLabel>
-          <div className="relative">
-            <Input
-              id="confirm-password"
-              type={show.confirm ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              className="pr-10"
-              {...register("confirmNewPassword")}
-            />
-            <ToggleVisibility
-              visible={show.confirm}
-              onToggle={() => toggleShow("confirm")}
-            />
-          </div>
+          <PasswordInput
+            id="confirm-password"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            {...register("confirmNewPassword")}
+          />
           <FieldError errors={[errors.confirmNewPassword]} />
         </Field>
 
@@ -138,25 +102,5 @@ export function SettingsPasswordForm() {
         </Button>
       </div>
     </form>
-  );
-}
-
-function ToggleVisibility({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      tabIndex={-1}
-      onClick={onToggle}
-      aria-label={visible ? "Hide password" : "Show password"}
-      className="absolute inset-y-0 right-0 z-10 flex items-center px-3 text-muted-foreground hover:text-foreground"
-    >
-      {visible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
-    </button>
   );
 }

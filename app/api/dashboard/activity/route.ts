@@ -35,12 +35,13 @@ interface DispatchMovementRow {
   order: { order_number: string; dealer: { name: string } | null } | null;
 }
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, _ctx, { orgId }) => {
   const db = getSupabaseAdminClient();
 
   const [ordersRes, additionsRes, dispatchRes] = await Promise.all([
     db.from("orders")
       .select("id, order_number, created_at, staff:profiles!orders_staff_id_fkey(name), dealer:dealers(name)")
+      .eq("organization_id", orgId)
       .order("created_at", { ascending: false })
       .limit(10),
 
@@ -50,6 +51,7 @@ export const GET = withAuth(async () => {
         actor:profiles!stock_movements_movement_by_fkey(name),
         seed:seed_products(variety, crop:crops(name))
       `)
+      .eq("organization_id", orgId)
       .eq("movement_type", "ADD")
       .not("movement_by", "is", null)
       .order("created_at", { ascending: false })
@@ -61,6 +63,7 @@ export const GET = withAuth(async () => {
         approver:profiles!stock_movements_approved_by_fkey(name),
         order:orders(order_number, dealer:dealers(name))
       `)
+      .eq("organization_id", orgId)
       .eq("movement_type", "DISPATCH")
       .not("approved_by", "is", null)
       .order("created_at", { ascending: false })

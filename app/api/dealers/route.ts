@@ -6,7 +6,7 @@ import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { createDealerSchema } from "@/lib/validators/dealers.validators";
 
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, { profile }) => {
+  async (req: NextRequest, _ctx, { profile, orgId }) => {
     const { searchParams } = req.nextUrl;
     const db = getSupabaseAdminClient();
 
@@ -16,7 +16,7 @@ export const GET = withAuth(
         ? profile.id
         : (searchParams.get("staffId") ?? undefined);
 
-    const result = await dealersQueries.getAll(db, {
+    const result = await dealersQueries.getAll(db, orgId, {
       page: Number(searchParams.get("page") ?? 1),
       pageSize: Number(searchParams.get("pageSize") ?? 20),
       search: searchParams.get("search") ?? undefined,
@@ -31,7 +31,7 @@ export const GET = withAuth(
 );
 
 export const POST = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     const body = await req.json().catch(() => null);
     const parsed = createDealerSchema.safeParse(body);
     if (!parsed.success) {
@@ -41,7 +41,7 @@ export const POST = withAuth(
     const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, notes } = parsed.data;
     const db = getSupabaseAdminClient();
 
-    const dealer = await dealersQueries.create(db, {
+    const dealer = await dealersQueries.create(db, orgId, {
       name,
       staff_id: staffId ?? null,
       contact,

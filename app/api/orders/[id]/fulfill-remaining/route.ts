@@ -7,11 +7,11 @@ import { ORDER_STATUSES } from "@/constants/order-status.constants";
 import type { OrderWithRelations } from "@/types/order.types";
 
 export const POST = withAuth(
-  async (_req: NextRequest, ctx, { profile }) => {
+  async (_req: NextRequest, ctx, { profile, orgId }) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const order = await ordersQueries.getById(db, id) as unknown as OrderWithRelations | null;
+    const order = await ordersQueries.getById(db, id, orgId).catch(() => null) as unknown as OrderWithRelations | null;
     if (!order) return apiError("Order not found", 404);
 
     if (order.status !== ORDER_STATUSES.PARTIALLY_APPROVED) {
@@ -37,6 +37,7 @@ export const POST = withAuth(
         .from("seed_stock")
         .select("*")
         .eq("seed_id", item.seed_id)
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: true });
 
       if (error) return apiError("Failed to read stock", 500);
@@ -62,6 +63,7 @@ export const POST = withAuth(
         .from("seed_stock")
         .select("*")
         .eq("seed_id", item.seed_id)
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: true });
 
       let toDeduct = remaining;
@@ -83,6 +85,7 @@ export const POST = withAuth(
         if (stockErr) throw stockErr;
 
         const { error: mvErr } = await db.from("stock_movements").insert({
+          organization_id:  orgId,
           seed_id:          item.seed_id,
           batch_number:     batch.batch_number,
           movement_type:    "DISPATCH",
@@ -103,7 +106,8 @@ export const POST = withAuth(
       const { error: itemErr } = await db
         .from("order_items")
         .update({ quantity: item.requested_quantity ?? item.quantity, updated_at: new Date().toISOString() })
-        .eq("id", item.id);
+        .eq("id", item.id)
+        .eq("organization_id", orgId);
       if (itemErr) throw itemErr;
     }
 
@@ -115,10 +119,11 @@ export const POST = withAuth(
         partial_reason: null,
         updated_at:     new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("organization_id", orgId);
     if (orderErr) throw orderErr;
 
-    const updated = await ordersQueries.getById(db, id);
+    const updated = await ordersQueries.getById(db, id, orgId);
     return apiSuccess(updated, "Backorder fulfilled — order is now fully approved");
   },
   PERMISSIONS.ORDERS_EDIT,

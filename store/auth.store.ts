@@ -65,18 +65,11 @@ export const useAuthStore = create<AuthStoreState & AuthActions>()(
         tokens: state.tokens,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state) => {
-        // state is the value restored from localStorage.
-        // On first login localStorage is empty, so state is undefined —
-        // state?.setHasHydrated(true) would be a silent no-op and the
-        // sidebar skeleton would stay visible forever.
-        // _markHydrated is always available since it's set synchronously
-        // during store creation, before this callback ever fires.
-        if (state) {
-          state.setHasHydrated(true);
-        } else {
-          _markHydrated?.();
-        }
+      onRehydrateStorage: () => () => {
+        // Always use the closure-captured setter — avoids relying on the
+        // rehydrated state object having .setHasHydrated attached, which can
+        // fail silently in Zustand v5 and leave the skeleton stuck forever.
+        _markHydrated?.();
       },
     }
   )

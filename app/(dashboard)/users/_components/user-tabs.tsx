@@ -1,8 +1,8 @@
 "use client";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { UsersTable } from "./users-table";
-import { AddUserDialog } from "./add-user-dialog";
+import { UsersTable } from "./table/users-table";
+import { AddUserDialog } from "./dialogs/add-user-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsersRealtime } from "@/hooks/use-users-realtime";
 import { ROLES, type Role } from "@/constants/roles.constants";

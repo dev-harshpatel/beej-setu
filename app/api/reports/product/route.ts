@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 import type { OrderWithRelations } from "@/types/order.types";
 
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     const { searchParams } = req.nextUrl;
     const seedId   = searchParams.get("seedId")   ?? undefined;
     const dateFrom = searchParams.get("dateFrom") ?? undefined;
@@ -15,7 +15,7 @@ export const GET = withAuth(
 
     const db = getSupabaseAdminClient();
 
-    const { data: orders } = await ordersQueries.getAll(db, {
+    const { data: orders } = await ordersQueries.getAll(db, orgId, {
       staffId,
       dateFrom,
       dateTo,

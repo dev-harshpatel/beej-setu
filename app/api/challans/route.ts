@@ -18,11 +18,12 @@ export const POST = withAuth(
 
     const db = getSupabaseAdminClient();
 
-    // Verify the order exists and is eligible for challan creation
+    // Verify the order exists in this org and is eligible for challan creation
     const { data: order, error: orderErr } = await db
       .from("orders")
       .select("id, status")
       .eq("id", order_id)
+      .eq("organization_id", auth.orgId)
       .single();
 
     if (orderErr || !order) {
@@ -40,6 +41,7 @@ export const POST = withAuth(
     const { data: challan, error: challanErr } = await db
       .from("challans")
       .insert({
+        organization_id: auth.orgId,
         order_id,
         challan_number,
         transport_name: transport_name || null,
@@ -61,7 +63,8 @@ export const POST = withAuth(
     await db
       .from("orders")
       .update({ status: ORDER_STATUSES.GODOWN_DISPATCHED })
-      .eq("id", order_id);
+      .eq("id", order_id)
+      .eq("organization_id", auth.orgId);
 
     // Save any dispatch-side batch overrides (with change reasons)
     const overrides = itemBatches as { itemId: string; batchNumber: string; changeReason: string }[] | undefined;
@@ -71,6 +74,7 @@ export const POST = withAuth(
           db.from("order_items")
             .update({ batch_number: batchNumber, batch_change_reason: changeReason || null })
             .eq("id", itemId)
+            .eq("organization_id", auth.orgId)
             .throwOnError()
         )
       );

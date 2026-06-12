@@ -30,8 +30,10 @@ import {
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
 import { usePermissions } from "@/hooks/use-permissions";
+import { formatDateMedium } from "@/lib/utils";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import type { OrderWithRelations } from "@/types/order.types";
+import { orderService } from "@/services/order.service";
 
 type OrderUnit = "Bag" | "Packet" | "Box";
 type ItemEdit = { quantity: number; unit: OrderUnit };
@@ -191,9 +193,7 @@ export function OrderDetailDrawer({
     if (!order) return;
     setFulfilling(true); setSaveError(null);
     try {
-      const res  = await fetch(`/api/orders/${order.id}/fulfill-remaining`, { method: "POST" });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message ?? "Failed to fulfill remaining");
+      await orderService.fulfillRemaining(order.id);
       onRefresh();
     } catch (err: unknown) {
       setSaveError((err as Error)?.message ?? "Failed to fulfill remaining quantities.");
@@ -282,9 +282,7 @@ export function OrderDetailDrawer({
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs text-muted-foreground">Date</span>
                 <span className="text-sm font-medium">
-                  {new Date(order.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit", month: "short", year: "numeric",
-                  })}
+                  {formatDateMedium(order.created_at)}
                 </span>
               </div>
             </div>
@@ -367,9 +365,7 @@ export function OrderDetailDrawer({
                     <CalendarIcon className="size-3.5 shrink-0" />
                     <span>
                       Delivery:{" "}
-                      {new Date(order.delivery_date).toLocaleDateString("en-IN", {
-                        day: "2-digit", month: "short", year: "numeric",
-                      })}
+                      {formatDateMedium(order.delivery_date)}
                     </span>
                   </div>
                 )}

@@ -8,6 +8,7 @@ import { StaffStatsRow } from "./staff-stats-row";
 import { StaffRecentOrders, type RecentOrderItem } from "./staff-recent-orders";
 import { ROUTES } from "@/constants/routes.constants";
 import { useAuth } from "@/hooks/use-auth";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
 
@@ -56,9 +57,7 @@ export function StaffDashboard() {
     totalOrders:    ordersData?.total ?? 0,
     pendingOrders:  pendingData?.total ?? 0,
     lastOrderDate: lastOrder
-      ? new Date(lastOrder.created_at).toLocaleDateString("en-IN", {
-          day: "2-digit", month: "short", year: "numeric",
-        })
+      ? formatDateMedium(lastOrder.created_at)
       : null,
     lastOrderDealer: lastOrder?.dealer?.name ?? null,
   };
@@ -66,9 +65,7 @@ export function StaffDashboard() {
   const recentOrders: RecentOrderItem[] = orders.map((o) => ({
     id:        o.id,
     dealer:    o.dealer?.name ?? "—",
-    date:      new Date(o.created_at).toLocaleDateString("en-IN", {
-      day: "2-digit", month: "short", year: "numeric",
-    }),
+    date:      formatDateMedium(o.created_at),
     itemCount: o.items?.length ?? 0,
     status:    o.status as OrderStatusValue,
   }));

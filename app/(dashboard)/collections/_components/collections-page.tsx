@@ -2,138 +2,32 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Combobox } from "@/components/ui/combobox";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
-import { WhatsAppSharePanel } from "@/app/(dashboard)/orders/_components/whatsapp-share-panel";
-import { buildCollectionWhatsAppMessage } from "@/lib/whatsapp";
+import { formatNumber } from "@/lib/utils";
+import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
+import { CollectionForm } from "./collection-form";
 import { CollectionsTable } from "./collections-table";
-import { CollectionsEditDialog } from "./collections-edit-dialog";
-import { CollectionsDeleteDialog } from "./collections-delete-dialog";
+import { CollectionsEditDialog, type CollectionUpdateValues } from "./dialogs/collections-edit-dialog";
+import { useCollectionsData } from "../_lib/use-collections-data";
+import { collectionsService } from "@/services/collections.service";
+import { getApiErrorMessage } from "@/lib/api-client";
 import type { CollectionWithRelations } from "@/lib/database/collections.queries";
-import type { DealerRow } from "@/types/database.types";
-
-type PaymentMode = "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
-
-const PAYMENT_MODE_OPTIONS: { value: PaymentMode; label: string }[] = [
-  { value: "CASH",          label: "Cash" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-  { value: "UPI",           label: "UPI" },
-  { value: "CHEQUE",        label: "Cheque" },
-];
-
-const TODAY = format(new Date(), "yyyy-MM-dd");
 
 export function CollectionsPage() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
-  // New collection form state
-  const [dealerId,       setDealerId]      = useState("");
-  const [paymentMode,    setPaymentMode]   = useState<PaymentMode | "">("");
-  const [amount,         setAmount]        = useState("");
-  const [collectionDate, setCollectionDate] = useState(TODAY);
-  const [notes,          setNotes]         = useState("");
-  const [formError,      setFormError]     = useState("");
-
-  // WhatsApp share
-  const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
-
-  // Edit / delete target
   const [editTarget,   setEditTarget]   = useState<CollectionWithRelations | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CollectionWithRelations | null>(null);
 
-  // ── Dealers ──────────────────────────────────────────────────────────────
-  const { data: dealerData } = useQuery({
-    queryKey: ["dealers-for-collection"],
-    queryFn: async () => {
-      const res  = await fetch("/api/dealers?pageSize=200");
-      const json = await res.json();
-      return (json.data?.data ?? []) as DealerRow[];
-    },
-    staleTime: 5 * 60_000,
-  });
-  const dealerOptions = (dealerData ?? []).map((d) => ({ value: d.id, label: d.name }));
+  const { dealerOptions, collections, loading, invalidate } = useCollectionsData(user?.id);
 
-  // ── Collections ───────────────────────────────────────────────────────────
-  const { data: collections = [], isFetching } = useQuery({
-    queryKey: ["collections", user?.id],
-    queryFn: async () => {
-      const res  = await fetch("/api/collections");
-      const json = await res.json();
-      return (json.data ?? []) as CollectionWithRelations[];
-    },
-    enabled: !!user?.id,
-  });
-  const loading = isFetching && collections.length === 0;
-
-  // ── Create ────────────────────────────────────────────────────────────────
-  const { mutate: submit, isPending } = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/collections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dealerId, paymentMode, amount: parseFloat(amount), collectionDate, notes: notes.trim() || undefined }),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? "Failed to record");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["collections"] });
-      const dealerName = dealerOptions.find((d) => d.value === dealerId)?.label ?? "";
-      const message = buildCollectionWhatsAppMessage({
-        dealerName,
-        amount: parseFloat(amount),
-        paymentMode,
-        collectionDate,
-        staffName: user?.name,
-        notes: notes.trim() || undefined,
-      });
-      setWhatsappMessage(message);
-      setDealerId(""); setPaymentMode(""); setAmount(""); setCollectionDate(TODAY); setNotes(""); setFormError("");
-    },
-    onError: (err: Error) => setFormError(err.message),
-  });
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    if (!dealerId)    return setFormError("Please select a dealer.");
-    if (!paymentMode) return setFormError("Please select a payment mode.");
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) return setFormError("Please enter a valid amount.");
-    if (!collectionDate) return setFormError("Please select a date.");
-    submit();
-  }
-
-  // ── Edit ──────────────────────────────────────────────────────────────────
-  async function handleEdit(id: string, payload: { paymentMode: PaymentMode; amount: number; collectionDate: string; notes?: string | null }) {
-    const res = await fetch(`/api/collections/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentMode: payload.paymentMode, amount: payload.amount, collectionDate: payload.collectionDate, notes: payload.notes }),
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message ?? "Failed to update");
-    queryClient.invalidateQueries({ queryKey: ["collections"] });
-  }
-
-  // ── Delete ────────────────────────────────────────────────────────────────
-  async function handleDelete(id: string) {
-    const res = await fetch(`/api/collections/${id}`, { method: "DELETE" });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.message ?? "Failed to delete");
-    queryClient.invalidateQueries({ queryKey: ["collections"] });
+  async function handleEdit(id: string, payload: CollectionUpdateValues) {
+    try {
+      await collectionsService.update(id, payload);
+    } catch (err: unknown) {
+      throw new Error(getApiErrorMessage(err, "Failed to update"));
+    }
+    invalidate();
   }
 
   const totalAmount = collections.reduce((s, c) => s + c.amount, 0);
@@ -145,51 +39,13 @@ export function CollectionsPage() {
         <h2 className="text-base font-semibold text-foreground">Collections</h2>
         <p className="text-xs text-muted-foreground">
           {collections.length > 0
-            ? `${collections.length} entr${collections.length === 1 ? "y" : "ies"} · ₹${totalAmount.toLocaleString("en-IN")}`
+            ? `${collections.length} entr${collections.length === 1 ? "y" : "ies"} · ₹${formatNumber(totalAmount)}`
             : "Record payments received from dealers"}
         </p>
       </div>
 
-      {/* New collection form */}
-      <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card px-4 py-4 sm:px-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">New Collection</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          <div className="flex flex-col gap-1.5 lg:col-span-1 xl:col-span-1">
-            <Label className="text-xs font-medium text-muted-foreground">Dealer</Label>
-            <Combobox items={dealerOptions} value={dealerId} onValueChange={setDealerId} placeholder="Select dealer…" searchPlaceholder="Search dealers…" className="h-9" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Mode of Payment</Label>
-            <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
-              <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select mode…" /></SelectTrigger>
-              <SelectContent>
-                {PAYMENT_MODE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Amount (₹)</Label>
-            <Input type="number" min="0.01" step="0.01" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Date</Label>
-            <DatePicker value={collectionDate} onChange={setCollectionDate} placeholder="Select date" className="h-9 w-full" />
-          </div>
-          <div className="flex flex-col gap-1.5 xl:col-span-1">
-            <Label className="text-xs font-medium text-muted-foreground invisible">&nbsp;</Label>
-            <Button type="submit" disabled={isPending} className="h-9 w-full sm:w-auto">
-              {isPending ? <Loader2Icon className="size-4 animate-spin" /> : null}
-              {isPending ? "Saving…" : "Add Collection"}
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <Label className="text-xs font-medium text-muted-foreground">Notes (optional)</Label>
-          <Input placeholder="e.g. Cheque no. 1234" value={notes} onChange={(e) => setNotes(e.target.value)} className="h-9 mt-1.5" />
-        </div>
-        {formError && <p className="mt-2 text-xs text-destructive">{formError}</p>}
-      </form>
+      {/* New collection form (owns its WhatsApp share dialog) */}
+      <CollectionForm dealerOptions={dealerOptions} onCreated={invalidate} />
 
       {/* Table */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -206,29 +62,6 @@ export function CollectionsPage() {
         </div>
       </div>
 
-      {/* WhatsApp share dialog */}
-      <Dialog open={!!whatsappMessage} onOpenChange={(open) => { if (!open) setWhatsappMessage(null); }}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg flex flex-col overflow-hidden p-0">
-          <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <div className="flex size-6 items-center justify-center rounded-full bg-[var(--accent)]">
-                <CheckCircle2Icon className="size-3.5 text-[var(--accent-foreground)]" />
-              </div>
-              <DialogTitle className="text-base">Collection Recorded!</DialogTitle>
-            </div>
-          </DialogHeader>
-          {whatsappMessage && (
-            <WhatsAppSharePanel
-              message={whatsappMessage}
-              title="Share on WhatsApp"
-              subtitle="Copy the message or tap Open WhatsApp to share with your group."
-              doneLabel="Done"
-              onDone={() => setWhatsappMessage(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Dialogs */}
       <CollectionsEditDialog
         collection={editTarget}
@@ -236,11 +69,33 @@ export function CollectionsPage() {
         onOpenChange={(open) => { if (!open) setEditTarget(null); }}
         onSave={handleEdit}
       />
-      <CollectionsDeleteDialog
-        collection={deleteTarget}
+      <DeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        onConfirm={handleDelete}
+        title="Delete Collection"
+        description={
+          deleteTarget ? (
+            <>
+              Delete the{" "}
+              <span className="font-medium text-foreground">₹{formatNumber(deleteTarget.amount)}</span>{" "}
+              collection from{" "}
+              <span className="font-medium text-foreground">{deleteTarget.dealer?.name ?? "—"}</span>{" "}
+              on{" "}
+              <span className="font-medium text-foreground">
+                {format(new Date(deleteTarget.collection_date), "dd MMM yyyy")}
+              </span>
+              ? This cannot be undone.
+            </>
+          ) : null
+        }
+        onConfirm={async () => {
+          try {
+            await collectionsService.remove(deleteTarget!.id);
+          } catch (err: unknown) {
+            throw new Error(getApiErrorMessage(err, "Failed to delete"));
+          }
+          invalidate();
+        }}
       />
     </div>
   );

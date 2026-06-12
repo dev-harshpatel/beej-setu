@@ -2,7 +2,7 @@
 
 import { DownloadIcon, PrinterIcon, CheckCircle2Icon, AlertTriangleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatDateMedium } from "@/lib/utils";
 import type { BatchWithStatus, BatchSummary, ReconciliationResult } from "@/lib/database/stock-movements.queries";
 
 interface Props {
@@ -82,10 +82,10 @@ export function BatchSummaryCard({ batch, summary, reconciliation, onExportCsv, 
       {/* Meta row */}
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
         {summary.first_movement_date && (
-          <span>First entry: {new Date(summary.first_movement_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+          <span>First entry: {formatDateMedium(summary.first_movement_date)}</span>
         )}
         {summary.last_movement_date && (
-          <span>Last movement: {new Date(summary.last_movement_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span>
+          <span>Last movement: {formatDateMedium(summary.last_movement_date)}</span>
         )}
         <span>Dealers served: {summary.distinct_dealers_count}</span>
         <span>Orders: {summary.orders_count}</span>

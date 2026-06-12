@@ -5,7 +5,7 @@ import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS } from "@/constants/roles.constants";
 
 export const POST = withAuth(
-  async (req: NextRequest) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     const body = await req.json().catch(() => ({}));
     const ids: unknown = body.ids;
 
@@ -14,7 +14,7 @@ export const POST = withAuth(
     }
 
     const db = getSupabaseAdminClient();
-    await ordersQueries.bulkDelete(db, ids as string[]);
+    await ordersQueries.bulkDelete(db, ids as string[], orgId);
     return apiSuccess(null, `${ids.length} order(s) deleted`);
   },
   PERMISSIONS.ORDERS_DELETE

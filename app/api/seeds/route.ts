@@ -6,11 +6,11 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 
 // GET /api/seeds?page=1&pageSize=50&search=&cropId=&variety=&status=
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     const { searchParams } = req.nextUrl;
     const db = getSupabaseAdminClient();
 
-    const result = await seedsQueries.getAll(db, {
+    const result = await seedsQueries.getAll(db, orgId, {
       page:             Number(searchParams.get("page")     ?? 1),
       pageSize:         Number(searchParams.get("pageSize") ?? 50),
       search:           searchParams.get("search")          ?? undefined,

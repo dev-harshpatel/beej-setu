@@ -17,7 +17,7 @@ export const GET = withAuth(
       return apiSuccess({ data: [], total: 0, page: 1, pageSize: 50 });
     }
 
-    const result = await usersQueries.getAll(db, {
+    const result = await usersQueries.getAll(db, auth.orgId, {
       page: Number(searchParams.get("page") ?? 1),
       pageSize: Number(searchParams.get("pageSize") ?? 50),
       search: searchParams.get("search") ?? undefined,
@@ -95,11 +95,12 @@ export const POST = withAuth(
       return apiError(msg, 500);
     }
 
-    // Insert profile row
+    // Insert profile row — new users always join the creating admin's org
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .insert({
         id: authData.user.id,
+        organization_id: auth.orgId,
         name,
         username: username.toLowerCase(),
         role,

@@ -1,5 +1,14 @@
 import type { Role } from "@/constants/roles.constants";
+import type { OrganizationStatusValue } from "./database.types";
 import type { ID, Timestamps } from "./common.types";
+
+export interface Organization {
+  id: ID;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  status: OrganizationStatusValue;
+}
 
 export interface User {
   id: ID;
@@ -10,6 +19,7 @@ export interface User {
   role: Role;
   isActive: boolean;
   profileImage?: string;
+  organization: Organization;
   createdAt: Timestamps["createdAt"];
   updatedAt: Timestamps["updatedAt"];
 }

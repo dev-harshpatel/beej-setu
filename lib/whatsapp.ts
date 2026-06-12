@@ -20,7 +20,7 @@ export interface OrderShareParams {
 }
 
 export function buildOrderWhatsAppMessage(params: OrderShareParams): string {
-  const { dealer, staffName, center, transportName, notes, items } = params;
+  const { dealer, center, transportName, notes, items } = params;
   const date = _today();
   const lines: string[] = [];
 

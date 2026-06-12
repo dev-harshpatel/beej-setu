@@ -6,10 +6,10 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 
 // GET /api/seeds/:id
 export const GET = withAuth(
-  async (_req: NextRequest, ctx, _auth) => {
+  async (_req: NextRequest, ctx, { orgId }) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
-    const product = await seedsQueries.getById(db, id);
+    const product = await seedsQueries.getById(db, id, orgId).catch(() => null);
 
     if (!product) return apiError("Seed product not found", 404);
     return apiSuccess(product);

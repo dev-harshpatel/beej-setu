@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDateMedium as fmtDate } from "@/lib/utils";
+import { MOVEMENT_TYPE_BADGE, MOVEMENT_TYPE_SIGN, fmtQty } from "../_lib/stock-ledger-utils";
 import type { StockMovementEntry } from "@/lib/database/stock-movements.queries";
 
 interface Props {
@@ -19,56 +20,6 @@ interface Props {
   packetsPerBag: number;
   onPageChange: (page: number) => void;
   onDateRangeChange: (from: string, to: string) => void;
-}
-
-const TYPE_BADGE: Record<string, string> = {
-  ADD:            "bg-emerald-100 text-emerald-700",
-  ADJUSTMENT_IN:  "bg-teal-100 text-teal-700",
-  ADJUSTMENT_OUT: "bg-orange-100 text-orange-600",
-  DISPATCH:       "bg-destructive/15 text-destructive",
-};
-
-const TYPE_SIGN: Record<string, string> = {
-  ADD:            "+",
-  ADJUSTMENT_IN:  "+",
-  ADJUSTMENT_OUT: "−",
-  DISPATCH:       "−",
-};
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function fmtQty(packets: number, ppb: number, sign: string) {
-  const bags = Math.floor(packets / ppb);
-  const pkts = packets % ppb;
-  const parts = [];
-  if (bags > 0) parts.push(`${sign}${bags} bags`);
-  if (pkts > 0) parts.push(`${sign}${pkts} pkts`);
-  if (parts.length === 0) parts.push(`${sign}0`);
-  return parts.join(", ");
-}
-
-export function exportToCsv(movements: StockMovementEntry[], batchNumber: string) {
-  const headers = ["Date", "Type", "Qty (pkts)", "Balance (pkts)", "By", "Dealer", "Order", "Notes"];
-  const rows = movements.map((m) => [
-    m.movement_date,
-    m.movement_type,
-    (TYPE_SIGN[m.movement_type] === "+" ? "+" : "-") + m.quantity_packets,
-    m.running_balance_packets,
-    m.movement_by_profile?.name ?? "",
-    m.order?.dealer?.name ?? "",
-    m.order?.order_number ?? "",
-    (m.notes ?? "").replace(/,/g, ";"),
-  ]);
-  const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ledger-${batchNumber}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function BatchMovementTimeline({
@@ -140,8 +91,8 @@ export function BatchMovementTimeline({
               </tr>
             ) : (
               movements.map((m) => {
-                const sign = TYPE_SIGN[m.movement_type] ?? "+";
-                const rb = m.running_balance_packets;
+                const sign  = MOVEMENT_TYPE_SIGN[m.movement_type] ?? "+";
+                const rb    = m.running_balance_packets;
                 const rbBags = Math.floor(rb / packetsPerBag);
                 const rbPkts = rb % packetsPerBag;
 
@@ -151,7 +102,7 @@ export function BatchMovementTimeline({
                       {fmtDate(m.movement_date)}
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", TYPE_BADGE[m.movement_type])}>
+                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", MOVEMENT_TYPE_BADGE[m.movement_type])}>
                         {m.movement_type.replace("_", " ")}
                       </span>
                     </td>
@@ -168,10 +119,7 @@ export function BatchMovementTimeline({
                           {m.order?.dealer && <span className="text-muted-foreground">→ {m.order.dealer.name}</span>}
                           {m.approved_by_profile && <span className="text-muted-foreground">Approved: {m.approved_by_profile.name}</span>}
                           {m.order && (
-                            <a
-                              href={`/orders?search=${m.order.order_number}`}
-                              className="text-primary underline text-xs"
-                            >
+                            <a href={`/orders?search=${m.order.order_number}`} className="text-primary underline text-xs">
                               {m.order.order_number} →
                             </a>
                           )}

@@ -8,7 +8,7 @@ type Ctx = { params: Promise<Record<string, string>> };
 
 // PATCH /api/stock/[id]
 export const PATCH = withAuth(
-  async (req: NextRequest, ctx: Ctx, { profile }) => {
+  async (req: NextRequest, ctx: Ctx, { profile, orgId }) => {
     try {
       const { id } = await ctx.params;
       const body = await req.json().catch(() => null);
@@ -16,7 +16,7 @@ export const PATCH = withAuth(
 
       const db  = getSupabaseAdminClient();
       const row = await stockQueries.update(
-        db, id,
+        db, id, orgId,
         {
           bag_stock:     body.bagStock     !== undefined ? Number(body.bagStock)    : undefined,
           packet_stock:  body.packetStock  !== undefined ? Number(body.packetStock) : undefined,
@@ -36,11 +36,11 @@ export const PATCH = withAuth(
 
 // DELETE /api/stock/[id]
 export const DELETE = withAuth(
-  async (_req: NextRequest, ctx: Ctx, _auth) => {
+  async (_req: NextRequest, ctx: Ctx, { orgId }) => {
     try {
       const { id } = await ctx.params;
       const db = getSupabaseAdminClient();
-      await stockQueries.remove(db, id);
+      await stockQueries.remove(db, id, orgId);
       return apiSuccess(null, "Stock batch deleted");
     } catch (err) {
       console.error("DELETE /api/stock/[id] error:", err);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,28 +19,22 @@ interface StockFormDialogProps {
 
 export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuccess }: StockFormDialogProps) {
   const isEdit = !!stock;
-  const [seedId, setSeedId]           = useState("");
-  const [batchNumber, setBatchNumber] = useState("");
-  const [bagStock, setBagStock]       = useState("0");
-  const [packetStock, setPacketStock] = useState("0");
-  const [notes, setNotes]             = useState("");
-  const [movementDate, setMovementDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState("");
 
-  useEffect(() => {
-    if (open) {
-      setSeedId(stock?.seed_id ?? "");
-      setBatchNumber(stock?.batch_number ?? "");
-      setBagStock(String(stock?.bag_stock ?? 0));
-      setPacketStock(String(stock?.packet_stock ?? 0));
-      setNotes(stock?.notes ?? "");
-      setMovementDate(stock?.movement_date ?? new Date().toISOString().slice(0, 10));
-      setError("");
-    }
-  }, [open, stock]);
+  // State is initialized from props at mount time.
+  // Parent passes key={stock?.id ?? "new"} so React remounts this component
+  // whenever the edit target changes, resetting these values automatically.
+  const [seedId, setSeedId]             = useState(stock?.seed_id ?? "");
+  const [batchNumber, setBatchNumber]   = useState(stock?.batch_number ?? "");
+  const [bagStock, setBagStock]         = useState(String(stock?.bag_stock ?? 0));
+  const [packetStock, setPacketStock]   = useState(String(stock?.packet_stock ?? 0));
+  const [notes, setNotes]               = useState(stock?.notes ?? "");
+  const [movementDate, setMovementDate] = useState(
+    stock?.movement_date ?? new Date().toISOString().slice(0, 10),
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
 
-  const selectedSeed = seedProducts.find((s) => s.id === seedId);
+  const selectedSeed  = seedProducts.find((s) => s.id === seedId);
   const packetsPerBag = selectedSeed?.packets_per_bag ?? stock?.seed_product.packets_per_bag ?? 0;
   const totalPackets  = (Number(bagStock) || 0) * packetsPerBag + (Number(packetStock) || 0);
 
@@ -117,19 +111,11 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label>Bag Stock</Label>
-              <Input
-                type="number" min={0}
-                value={bagStock}
-                onChange={(e) => setBagStock(e.target.value)}
-              />
+              <Input type="number" min={0} value={bagStock} onChange={(e) => setBagStock(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Loose Packets</Label>
-              <Input
-                type="number" min={0}
-                value={packetStock}
-                onChange={(e) => setPacketStock(e.target.value)}
-              />
+              <Input type="number" min={0} value={packetStock} onChange={(e) => setPacketStock(e.target.value)} />
             </div>
           </div>
 
@@ -142,11 +128,7 @@ export function StockFormDialog({ open, onOpenChange, stock, seedProducts, onSuc
 
           <div className="flex flex-col gap-1.5">
             <Label>Stock Date</Label>
-            <Input
-              type="date"
-              value={movementDate}
-              onChange={(e) => setMovementDate(e.target.value)}
-            />
+            <Input type="date" value={movementDate} onChange={(e) => setMovementDate(e.target.value)} />
             <p className="text-xs text-muted-foreground">The date the stock was physically received or adjusted.</p>
           </div>
 

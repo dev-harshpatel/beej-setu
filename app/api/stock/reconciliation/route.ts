@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/constants/roles.constants";
 
 // GET /api/stock/reconciliation?seedId=&batchNumber=
 export const GET = withAuth(
-  async (req: NextRequest, _ctx, _auth) => {
+  async (req: NextRequest, _ctx, { orgId }) => {
     try {
       const { searchParams } = req.nextUrl;
       const seedId      = searchParams.get("seedId");
@@ -17,7 +17,7 @@ export const GET = withAuth(
       }
 
       const db = getSupabaseAdminClient();
-      const result = await stockMovementsQueries.getReconciliation(db, seedId, batchNumber);
+      const result = await stockMovementsQueries.getReconciliation(db, orgId, seedId, batchNumber);
 
       return apiSuccess(result);
     } catch (err) {

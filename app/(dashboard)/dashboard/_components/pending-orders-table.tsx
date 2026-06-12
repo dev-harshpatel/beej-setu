@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDateMedium } from "@/lib/utils";
 import type { OrderWithRelations } from "@/types/order.types";
 
 interface PendingOrdersTableProps {
@@ -56,9 +57,7 @@ export function PendingOrdersTable({ orders, onApprove, onEdit, onRowClick }: Pe
                 {order.staff?.name ?? "—"}
               </TableCell>
               <TableCell className="hidden md:table-cell text-sm text-muted-foreground whitespace-nowrap">
-                {new Date(order.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit", month: "short", year: "numeric",
-                })}
+                {formatDateMedium(order.created_at)}
               </TableCell>
               <TableCell className="text-center">
                 <Badge className="bg-accent text-accent-foreground border-0 tabular-nums">

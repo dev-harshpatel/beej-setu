@@ -20,12 +20,40 @@ type OrderStatus =
   | "TRANSPORT_DISPATCHED"
   | "SHIPPED";
 
+type OrganizationStatus = "ACTIVE" | "SUSPENDED" | "CANCELLED";
+
 export interface Database {
   public: {
     Tables: {
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          logo_url: string | null;
+          status: OrganizationStatus;
+          settings: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          logo_url?: string | null;
+          status?: OrganizationStatus;
+          settings?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["organizations"]["Insert"]>;
+        Relationships: [];
+      };
+
       profiles: {
         Row: {
           id: string;
+          organization_id: string;
           name: string;
           username: string;
           phone: string | null;
@@ -40,6 +68,7 @@ export interface Database {
         };
         Insert: {
           id: string;
+          organization_id: string;
           name: string;
           username: string;
           phone?: string | null;
@@ -59,6 +88,7 @@ export interface Database {
       dealers: {
         Row: {
           id: string;
+          organization_id: string;
           name: string;
           staff_id: string | null;
           contact: string | null;
@@ -73,6 +103,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           name: string;
           staff_id?: string | null;
           contact?: string | null;
@@ -99,12 +130,14 @@ export interface Database {
       crops: {
         Row: {
           id: string;
+          organization_id: string;
           name: string;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
+          organization_id: string;
           name: string;
           created_at?: string;
           updated_at?: string;
@@ -116,6 +149,7 @@ export interface Database {
       seed_products: {
         Row: {
           id: string;
+          organization_id: string;
           crop_id: string;
           variety: string;
           pack_size: string;
@@ -127,6 +161,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           crop_id: string;
           variety: string;
           pack_size: string;
@@ -150,6 +185,7 @@ export interface Database {
       orders: {
         Row: {
           id: string;
+          organization_id: string;
           order_number: string;
           dealer_id: string | null;
           staff_id: string;
@@ -165,6 +201,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           order_number: string;
           dealer_id?: string | null;
           staff_id: string;
@@ -185,6 +222,7 @@ export interface Database {
       challans: {
         Row: {
           id: string;
+          organization_id: string;
           order_id: string;
           challan_number: string;
           transport_name: string | null;
@@ -197,6 +235,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           order_id: string;
           challan_number: string;
           transport_name?: string | null;
@@ -221,6 +260,7 @@ export interface Database {
       seed_stock: {
         Row: {
           id: string;
+          organization_id: string;
           seed_id: string;
           batch_number: string;
           bag_stock: number;
@@ -233,6 +273,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           seed_id: string;
           batch_number: string;
           bag_stock?: number;
@@ -253,6 +294,7 @@ export interface Database {
       stock_movements: {
         Row: {
           id: string;
+          organization_id: string;
           seed_id: string;
           batch_number: string;
           movement_type: 'ADD' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'DISPATCH';
@@ -268,6 +310,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           seed_id: string;
           batch_number: string;
           movement_type: 'ADD' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'DISPATCH';
@@ -288,6 +331,7 @@ export interface Database {
       order_items: {
         Row: {
           id: string;
+          organization_id: string;
           order_id: string;
           seed_id: string;
           unit: "Bag" | "Packet" | "Box";
@@ -301,6 +345,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           order_id: string;
           seed_id: string;
           unit?: "Bag" | "Packet" | "Box";
@@ -319,6 +364,7 @@ export interface Database {
       collections: {
         Row: {
           id: string;
+          organization_id: string;
           dealer_id: string | null;
           staff_id: string;
           payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
@@ -330,6 +376,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          organization_id: string;
           dealer_id?: string | null;
           staff_id: string;
           payment_mode: "CASH" | "BANK_TRANSFER" | "UPI" | "CHEQUE";
@@ -355,6 +402,33 @@ export interface Database {
           }
         ];
       };
+
+      bulk_upload_logs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          upload_type: "dealers" | "stock";
+          uploaded_by: string | null;
+          total_rows: number;
+          success_count: number;
+          failure_count: number;
+          results: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          upload_type: "dealers" | "stock";
+          uploaded_by?: string | null;
+          total_rows: number;
+          success_count: number;
+          failure_count: number;
+          results?: Json;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, { Row: Record<string, unknown>; Relationships: [] }>;
     Functions: Record<string, { Args: Record<string, unknown>; Returns: unknown }>;
@@ -366,6 +440,8 @@ export interface Database {
 // encrypted_password is a real DB column but must never be sent to the client.
 // All profile queries explicitly exclude it; this type reflects what reaches the client.
 export type ProfileRow = Omit<Database["public"]["Tables"]["profiles"]["Row"], "encrypted_password">;
+export type OrganizationRow   = Database["public"]["Tables"]["organizations"]["Row"];
+export type OrganizationStatusValue = OrganizationRow["status"];
 export type DealerRow         = Database["public"]["Tables"]["dealers"]["Row"];
 export type CropRow           = Database["public"]["Tables"]["crops"]["Row"];
 export type SeedProductRow    = Database["public"]["Tables"]["seed_products"]["Row"];

@@ -3,6 +3,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SettingsProfileForm } from "./_components/settings-profile-form";
 import { SettingsPasswordForm } from "./_components/settings-password-form";
+import { SettingsOrganizationSection } from "./_components/settings-organization-section";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -20,36 +21,40 @@ export default function SettingsPage() {
         <h1 className="text-sm font-medium">Settings</h1>
       </header>
 
-      <div className="flex flex-1 flex-col gap-8 p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Settings</h2>
+          <h2 className="text-xl font-semibold text-foreground">Settings</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your account credentials.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:max-w-3xl">
-          <section className="flex flex-col gap-4">
-            <div>
-              <h3 className="text-base font-semibold">Profile</h3>
-              <p className="text-sm text-muted-foreground">
+        <div className="grid gap-5 md:grid-cols-2 max-w-4xl">
+          <section className="rounded-xl border border-border bg-card flex flex-col">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground">Profile</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Update your email address or username.
               </p>
             </div>
-            <Separator />
-            <SettingsProfileForm />
+            <div className="px-5 py-5">
+              <SettingsProfileForm />
+            </div>
           </section>
 
-          <section className="flex flex-col gap-4">
-            <div>
-              <h3 className="text-base font-semibold">Password</h3>
-              <p className="text-sm text-muted-foreground">
+          <section className="rounded-xl border border-border bg-card flex flex-col">
+            <div className="px-5 py-4 border-b border-border">
+              <h3 className="text-sm font-semibold text-foreground">Password</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Change your account password.
               </p>
             </div>
-            <Separator />
-            <SettingsPasswordForm />
+            <div className="px-5 py-5">
+              <SettingsPasswordForm />
+            </div>
           </section>
+
+          <SettingsOrganizationSection />
         </div>
       </div>
     </>

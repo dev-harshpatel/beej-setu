@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLES } from "@/constants/roles.constants";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -19,27 +17,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
-import { ORDER_STATUS_LABELS } from "@/constants/order-status.constants";
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:              "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  APPROVED:             "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  PARTIALLY_APPROVED:   "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  HOLD:                 "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  CANCELLED:            "bg-destructive/10 text-destructive",
-  GODOWN_DISPATCHED:    "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
-  TRANSPORT_DISPATCHED: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-  SHIPPED:              "bg-accent text-accent-foreground",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? "bg-muted text-muted-foreground"}`}>
-      {ORDER_STATUS_LABELS[status as keyof typeof ORDER_STATUS_LABELS] ?? status}
-    </span>
-  );
-}
+import { OrderStatusBadge } from "../../../orders/_components/order-status-badge";
+import { ReportFilterBar } from "../../_components/report-filter-bar";
+import { StatChip } from "../../_components/stat-chip";
+import { formatDateMedium } from "@/lib/utils";
+import type { OrderStatusValue } from "@/constants/order-status.constants";
 
 // ── Row type from API ─────────────────────────────────────────────────────────
 interface ProductReportRow {
@@ -147,7 +129,17 @@ export default function ProductReportPage() {
         </div>
 
         {/* ── Filters ───────────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-3 items-end rounded-lg border border-border p-4 bg-card">
+        <ReportFilterBar
+          onGenerate={handleGenerate}
+          onClear={handleClear}
+          loading={isFetching}
+          hasReport={hasReport}
+          note={isStaff && (
+            <p className="w-full text-xs text-muted-foreground">
+              Showing only your orders for the selected product.
+            </p>
+          )}
+        >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">Product (optional)</label>
             <Combobox
@@ -186,40 +178,18 @@ export default function ProductReportPage() {
               className="w-40"
             />
           </div>
-
-          <div className="flex gap-2 items-end">
-            <Button onClick={handleGenerate} disabled={isFetching}>
-              {isFetching ? "Loading…" : "Generate Report"}
-            </Button>
-            {hasReport && (
-              <Button variant="ghost" size="icon" onClick={handleClear} title="Clear report">
-                <XIcon className="size-4" />
-              </Button>
-            )}
-          </div>
-          {isStaff && (
-            <p className="w-full text-xs text-muted-foreground">
-              Showing only your orders for the selected product.
-            </p>
-          )}
-        </div>
+        </ReportFilterBar>
 
         {/* ── Summary chips ─────────────────────────────────────────── */}
         {hasReport && !isFetching && rows.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-              {rows.length} line item{rows.length !== 1 ? "s" : ""}
-            </div>
-            <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-              {Object.keys(dealerTotals).length} dealer{Object.keys(dealerTotals).length !== 1 ? "s" : ""}
-            </div>
-            <div className="rounded-md bg-muted px-3 py-1.5 text-xs font-medium">
-              {rows.reduce((s, r) => s + r.quantity, 0)} total units
-            </div>
+            <StatChip>{rows.length} line item{rows.length !== 1 ? "s" : ""}</StatChip>
+            <StatChip>{Object.keys(dealerTotals).length} dealer{Object.keys(dealerTotals).length !== 1 ? "s" : ""}</StatChip>
+            <StatChip>{rows.reduce((s, r) => s + r.quantity, 0)} total units</StatChip>
             {selectedProduct && (
-              <div className="rounded-md bg-accent/20 text-accent-foreground px-3 py-1.5 text-xs font-medium">
+              <StatChip accent>
                 {selectedProduct.crop.name} — {selectedProduct.variety} ({selectedProduct.pack_size})
-              </div>
+              </StatChip>
             )}
           </div>
         )}
@@ -259,9 +229,7 @@ export default function ProductReportPage() {
                           {row.order_number}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {new Date(row.order_date).toLocaleDateString("en-IN", {
-                            day: "2-digit", month: "short", year: "numeric",
-                          })}
+                          {formatDateMedium(row.order_date)}
                         </TableCell>
                         <TableCell className="font-medium text-sm">
                           {row.dealer_name ?? "—"}
@@ -285,7 +253,7 @@ export default function ProductReportPage() {
                           {row.unit}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          <StatusBadge status={row.order_status} />
+                          <OrderStatusBadge status={row.order_status as OrderStatusValue} />
                         </TableCell>
                       </TableRow>
                     ))}

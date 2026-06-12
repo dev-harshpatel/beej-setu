@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { usersQueries } from "@/lib/database/users.queries";
 import { loginSchema } from "@/lib/validators/auth.validators";
 import { apiSuccess, apiError } from "@/lib/api/auth-guard";
+import { serializeAuthUser } from "@/lib/api/serialize-user";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 function isEmail(value: string): boolean {
@@ -74,8 +75,8 @@ export async function POST(req: NextRequest) {
       return apiError("Invalid credentials", 401);
     }
 
-    const profile = await usersQueries.getById(supabase, data.user.id).catch((e) => {
-      console.error("[api/login] getById error", e);
+    const profile = await usersQueries.getByIdWithOrg(supabase, data.user.id).catch((e) => {
+      console.error("[api/login] getByIdWithOrg error", e);
       return null;
     });
     console.log("[api/login] profile:", profile);
@@ -85,20 +86,14 @@ export async function POST(req: NextRequest) {
       return apiError("Account is inactive. Contact your admin.", 403);
     }
 
+    if (profile.organization.status !== "ACTIVE") {
+      await supabase.auth.signOut();
+      return apiError("Organization is not active. Contact support.", 403);
+    }
+
     return apiSuccess(
       {
-        user: {
-          id: profile.id,
-          name: profile.name,
-          username: profile.username,
-          email: data.user.email!,
-          phone: profile.phone,
-          role: profile.role,
-          isActive: profile.is_active,
-          profileImage: profile.profile_image,
-          createdAt: profile.created_at,
-          updatedAt: profile.updated_at,
-        },
+        user: serializeAuthUser(profile, data.user.email!),
         session: {
           accessToken: data.session!.access_token,
           refreshToken: data.session!.refresh_token,

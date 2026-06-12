@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { ArrowUpDownIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 export interface InventoryRow {
   seedId: string;
@@ -18,6 +17,20 @@ export interface InventoryRow {
 }
 
 type SortKey = "cropName" | "totalPacketsEquiv" | "totalBags";
+
+function SortBtn({ col, label, activeCol, onSort }: {
+  col: SortKey; label: string; activeCol: SortKey; onSort: (col: SortKey) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSort(col)}
+      className="flex items-center gap-1 hover:text-foreground transition-colors"
+    >
+      {label}
+      <ArrowUpDownIcon className={cn("size-3", activeCol === col ? "opacity-100" : "opacity-40")} />
+    </button>
+  );
+}
 
 function stockStatus(total: number): { label: string; cls: string } {
   if (total === 0)  return { label: "Out of Stock", cls: "bg-destructive/10 text-destructive border-destructive/20" };
@@ -44,18 +57,6 @@ export function InventoryReport({ rows, loading }: Props) {
     return asc ? cmp : -cmp;
   });
 
-  function SortBtn({ col, label }: { col: SortKey; label: string }) {
-    return (
-      <button
-        onClick={() => toggleSort(col)}
-        className="flex items-center gap-1 hover:text-foreground transition-colors"
-      >
-        {label}
-        <ArrowUpDownIcon className={cn("size-3", sortKey === col ? "opacity-100" : "opacity-40")} />
-      </button>
-    );
-  }
-
   return (
     <div className="rounded-xl border border-border bg-card flex flex-col">
       <div className="border-b border-border px-4 py-3 shrink-0">
@@ -79,17 +80,17 @@ export function InventoryReport({ rows, loading }: Props) {
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-border bg-muted text-muted-foreground">
               <th className="px-3 py-2 text-left font-medium truncate">
-                <SortBtn col="cropName" label="Crop" />
+                <SortBtn col="cropName" label="Crop" activeCol={sortKey} onSort={toggleSort} />
               </th>
               <th className="px-3 py-2 text-left font-medium truncate">Variety</th>
               <th className="px-3 py-2 text-left font-medium truncate hidden sm:table-cell">Pack Size</th>
               <th className="px-3 py-2 text-right font-medium truncate hidden md:table-cell">Pkts/Bag</th>
               <th className="px-3 py-2 text-right font-medium truncate">
-                <SortBtn col="totalBags" label="Bags" />
+                <SortBtn col="totalBags" label="Bags" activeCol={sortKey} onSort={toggleSort} />
               </th>
               <th className="px-3 py-2 text-right font-medium truncate hidden sm:table-cell">Loose Pkts</th>
               <th className="px-3 py-2 text-right font-medium truncate">
-                <SortBtn col="totalPacketsEquiv" label="Total (pkts)" />
+                <SortBtn col="totalPacketsEquiv" label="Total (pkts)" activeCol={sortKey} onSort={toggleSort} />
               </th>
               <th className="px-3 py-2 text-center font-medium truncate">Status</th>
             </tr>
@@ -113,7 +114,7 @@ export function InventoryReport({ rows, loading }: Props) {
                     <td className="px-3 py-1.5 text-right tabular-nums hidden md:table-cell">{row.packetsPerBag}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums font-medium">{row.totalBags}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums hidden sm:table-cell">{row.totalLoosePackets}</td>
-                    <td className="px-3 py-1.5 text-right tabular-nums font-semibold">{row.totalPacketsEquiv.toLocaleString("en-IN")}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums font-semibold">{formatNumber(row.totalPacketsEquiv)}</td>
                     <td className="px-3 py-1.5 text-center">
                       <span className={cn("inline-block rounded-full border px-1.5 py-px text-xs font-medium", cls)}>
                         {label}

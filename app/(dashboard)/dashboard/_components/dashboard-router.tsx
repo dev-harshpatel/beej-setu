@@ -13,7 +13,6 @@ export function DashboardRouter() {
   const router = useRouter();
 
   // Dispatch staff have no dashboard — send them straight to orders
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (user?.role === ROLES.DISPATCH_STAFF) {
       router.replace(ROUTES.ORDERS.ROOT);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Leaf } from "lucide-react";
 import { LoginForm } from "./_components/login-form";
 
@@ -20,7 +21,10 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            {/* Suspense required: LoginForm reads useSearchParams (the ?registered=1 notice) */}
+            <Suspense>
+              <LoginForm />
+            </Suspense>
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@ import {
 const VALID_STATUSES: OrderStatusValue[] = Object.values(ORDER_STATUSES);
 
 export const PATCH = withAuth(
-  async (req: NextRequest, ctx, _auth) => {
+  async (req: NextRequest, ctx, { orgId }) => {
     const { id } = await ctx.params;
     const body = await req.json().catch(() => ({}));
 
@@ -32,7 +32,7 @@ export const PATCH = withAuth(
     let order;
     if (isApproval) {
       try {
-        order = await ordersQueries.approveWithStockDeduction(db, id, status);
+        order = await ordersQueries.approveWithStockDeduction(db, id, orgId, status);
       } catch (err: unknown) {
         // PostgrestError from Supabase v2 is NOT instanceof Error — read .message directly.
         const msg =
@@ -45,7 +45,7 @@ export const PATCH = withAuth(
       // For partial approvals, persist the reason (deliberate vs backorder).
       if (status === ORDER_STATUSES.PARTIALLY_APPROVED && body.partial_reason) {
         const reason = body.partial_reason as "deliberate" | "backorder";
-        await db.from("orders").update({ partial_reason: reason }).eq("id", id);
+        await db.from("orders").update({ partial_reason: reason }).eq("id", id).eq("organization_id", orgId);
       }
 
       // Save per-item batch assignments selected by admin.
@@ -56,13 +56,14 @@ export const PATCH = withAuth(
             db.from("order_items")
               .update({ batch_number: batchNumber })
               .eq("id", itemId)
+              .eq("organization_id", orgId)
               .throwOnError()
           )
         );
       }
-      order = await ordersQueries.getById(db, id);
+      order = await ordersQueries.getById(db, id, orgId);
     } else {
-      order = await ordersQueries.updateStatus(db, id, status);
+      order = await ordersQueries.updateStatus(db, id, orgId, status);
     }
 
     return apiSuccess(order, "Status updated");

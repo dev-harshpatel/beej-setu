@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EyeIcon, XIcon } from "lucide-react";
+import { EyeIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { ROLES } from "@/constants/roles.constants";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -14,7 +14,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Table,
@@ -24,124 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { OrderStatusBadge } from "../../../orders/_components/order-status-badge";
+import { OrderDetailSheet } from "./order-detail-sheet";
+import { ReportFilterBar } from "../../_components/report-filter-bar";
+import { formatDateMedium } from "@/lib/utils";
 import type { DealerRow } from "@/types/database.types";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
-
-// ── Order detail sheet ────────────────────────────────────────────────────────
-function OrderDetailSheet({
-  order,
-  onClose,
-}: {
-  order: OrderWithRelations | null;
-  onClose: () => void;
-}) {
-  return (
-    <Sheet open={!!order} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto p-0" showCloseButton={false}>
-        {/* Header */}
-        <SheetHeader className="flex flex-row items-center justify-between border-b px-4 py-3 gap-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <SheetTitle className="font-mono text-sm font-semibold truncate">
-              {order?.order_number ?? "Order Details"}
-            </SheetTitle>
-            {order && <OrderStatusBadge status={order.status as OrderStatusValue} />}
-          </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <XIcon className="size-4" />
-          </Button>
-        </SheetHeader>
-
-        {order && (
-          <div className="flex flex-col gap-5 px-4 py-5">
-            {/* Summary grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs text-muted-foreground">Date</span>
-                <span className="text-sm font-medium">
-                  {new Date(order.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit", month: "short", year: "numeric",
-                  })}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs text-muted-foreground">Dealer</span>
-                <span className="text-sm font-medium">{order.dealer?.name ?? "—"}</span>
-                {order.dealer?.territory && (
-                  <span className="text-xs text-muted-foreground">{order.dealer.territory}</span>
-                )}
-              </div>
-              {order.staff && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs text-muted-foreground">Staff</span>
-                  <span className="text-sm font-medium">{order.staff.name}</span>
-                </div>
-              )}
-              {order.transport_name && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs text-muted-foreground">Transport</span>
-                  <span className="text-sm font-medium">{order.transport_name}</span>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Items */}
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-semibold">Order Items ({order.items?.length ?? 0})</h3>
-              <div className="overflow-x-auto rounded-md border border-border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Seed</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Unit</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(order.items ?? []).map((item) => (
-                      <tr key={item.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2 font-medium">
-                          <div>{item.seed?.crops?.name ?? "—"}</div>
-                          {item.seed?.variety && (
-                            <div className="text-xs text-muted-foreground">
-                              {item.seed.variety}{item.seed.pack_size ? ` · ${item.seed.pack_size}` : ""}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right text-muted-foreground">{item.unit ?? "—"}</td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums">{item.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Notes */}
-            {order.notes && (
-              <>
-                <Separator />
-                <div className="flex flex-col gap-1">
-                  <p className="text-xs font-medium text-muted-foreground">Notes</p>
-                  <p className="text-sm">{order.notes}</p>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
-  );
-}
 
 // ── Dealer Report Page ────────────────────────────────────────────────────────
 interface ActiveFilters {
@@ -225,7 +113,18 @@ export default function DealerReportPage() {
         </div>
 
         {/* ── Filters ───────────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-3 items-end rounded-lg border border-border p-4 bg-card">
+        <ReportFilterBar
+          onGenerate={handleGenerate}
+          onClear={handleClear}
+          loading={isFetching}
+          hasReport={hasReport}
+          disabled={!dealerId}
+          note={isStaff && (
+            <p className="w-full text-xs text-muted-foreground">
+              Showing only your orders for the selected dealer.
+            </p>
+          )}
+        >
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">Dealer *</label>
             <Select value={dealerId} onValueChange={(v) => setDealerId(v ?? "")}>
@@ -267,23 +166,7 @@ export default function DealerReportPage() {
               className="w-40"
             />
           </div>
-
-          <div className="flex gap-2 items-end">
-            <Button onClick={handleGenerate} disabled={!dealerId || isFetching}>
-              {isFetching ? "Loading…" : "Generate Report"}
-            </Button>
-            {hasReport && (
-              <Button variant="ghost" size="icon" onClick={handleClear} title="Clear report">
-                <XIcon className="size-4" />
-              </Button>
-            )}
-          </div>
-          {isStaff && (
-            <p className="w-full text-xs text-muted-foreground">
-              Showing only your orders for the selected dealer.
-            </p>
-          )}
-        </div>
+        </ReportFilterBar>
 
         {/* ── Dealer info card ──────────────────────────────────────── */}
         {reportDealer && (
@@ -313,11 +196,11 @@ export default function DealerReportPage() {
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
                 Period:{" "}
                 {activeFilters.dateFrom
-                  ? new Date(activeFilters.dateFrom).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                  ? formatDateMedium(activeFilters.dateFrom)
                   : "—"}
                 {" → "}
                 {activeFilters.dateTo
-                  ? new Date(activeFilters.dateTo).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                  ? formatDateMedium(activeFilters.dateTo)
                   : "—"}
               </p>
             )}
@@ -362,9 +245,7 @@ export default function DealerReportPage() {
                           {order.order_number}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString("en-IN", {
-                            day: "2-digit", month: "short", year: "numeric",
-                          })}
+                          {formatDateMedium(order.created_at)}
                         </TableCell>
                         <TableCell>
                           <OrderStatusBadge status={order.status as OrderStatusValue} />
@@ -377,9 +258,7 @@ export default function DealerReportPage() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                           {order.delivery_date
-                            ? new Date(order.delivery_date).toLocaleDateString("en-IN", {
-                                day: "2-digit", month: "short", year: "numeric",
-                              })
+                            ? formatDateMedium(order.delivery_date)
                             : "—"}
                         </TableCell>
                         <TableCell>

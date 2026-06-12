@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { collectionsQueries } from "@/lib/database/collections.queries";
+import { dealersQueries } from "@/lib/database/dealers.queries";
 import { withAuth, apiSuccess, apiError } from "@/lib/api/auth-guard";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { z } from "zod";
@@ -14,11 +15,11 @@ const updateSchema = z.object({
 });
 
 export const PATCH = withAuth(
-  async (req: NextRequest, ctx, { profile }) => {
+  async (req: NextRequest, ctx, { profile, orgId }) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const collection = await collectionsQueries.getById(db, id);
+    const collection = await collectionsQueries.getById(db, id, orgId);
     if (!collection) return apiError("Collection not found", 404);
 
     // Staff can only edit their own collections
@@ -34,7 +35,12 @@ export const PATCH = withAuth(
 
     const { dealerId, paymentMode, amount, collectionDate, notes } = parsed.data;
 
-    const updated = await collectionsQueries.update(db, id, {
+    if (dealerId !== undefined) {
+      const dealer = await dealersQueries.getById(db, dealerId, orgId).catch(() => null);
+      if (!dealer) return apiError("Dealer not found", 404);
+    }
+
+    const updated = await collectionsQueries.update(db, id, orgId, {
       ...(dealerId       !== undefined && { dealer_id:       dealerId }),
       ...(paymentMode    !== undefined && { payment_mode:    paymentMode }),
       ...(amount         !== undefined && { amount }),
@@ -48,11 +54,11 @@ export const PATCH = withAuth(
 );
 
 export const DELETE = withAuth(
-  async (_req: NextRequest, ctx, { profile }) => {
+  async (_req: NextRequest, ctx, { profile, orgId }) => {
     const { id } = await ctx.params;
     const db = getSupabaseAdminClient();
 
-    const collection = await collectionsQueries.getById(db, id);
+    const collection = await collectionsQueries.getById(db, id, orgId);
     if (!collection) return apiError("Collection not found", 404);
 
     // Staff can only delete their own collections
@@ -60,7 +66,7 @@ export const DELETE = withAuth(
       return apiError("You can only delete your own collections", 403);
     }
 
-    await collectionsQueries.delete(db, id);
+    await collectionsQueries.delete(db, id, orgId);
     return apiSuccess(null, "Collection deleted");
   },
   PERMISSIONS.COLLECTIONS_DELETE

@@ -86,6 +86,7 @@ function computeSummary(movements: StockMovementEntry[]): BatchSummary {
 export const stockMovementsQueries = {
   async getBatches(
     db: SupabaseClient<Database>,
+    orgId: string,
     filters: {
       cropId?: string;
       variety?: string;
@@ -97,7 +98,8 @@ export const stockMovementsQueries = {
       .from("seed_stock")
       .select(
         "seed_id, batch_number, bag_stock, packet_stock, created_at, seed_product:seed_products!inner(variety, pack_size, packets_per_bag, crop:crops!inner(name))"
-      );
+      )
+      .eq("organization_id", orgId);
 
     if (filters.cropId) {
       query = query.eq("seed_products.crop_id", filters.cropId);
@@ -130,12 +132,13 @@ export const stockMovementsQueries = {
 
     // Fetch first/last movement dates in a single query
     const seedBatchPairs = rows.map((r) => `(seed_id.eq.${r.seed_id},batch_number.eq.${r.batch_number})`);
-    let movementDates: Record<string, { first: string | null; last: string | null }> = {};
+    const movementDates: Record<string, { first: string | null; last: string | null }> = {};
 
     if (seedBatchPairs.length > 0) {
       const { data: mdData } = await db
         .from("stock_movements")
         .select("seed_id, batch_number, movement_date")
+        .eq("organization_id", orgId)
         .in("seed_id", rows.map((r) => r.seed_id));
 
       if (mdData) {
@@ -170,6 +173,7 @@ export const stockMovementsQueries = {
 
   async getMovements(
     db: SupabaseClient<Database>,
+    orgId: string,
     seedId: string,
     batchNumber: string,
     params?: {
@@ -192,6 +196,7 @@ export const stockMovementsQueries = {
          order:orders(order_number, dealer:dealers(name))`,
         { count: "exact" }
       )
+      .eq("organization_id", orgId)
       .eq("seed_id", seedId)
       .eq("batch_number", batchNumber);
 
@@ -223,9 +228,21 @@ export const stockMovementsQueries = {
 
   async getReconciliation(
     db: SupabaseClient<Database>,
+    orgId: string,
     seedId: string,
     batchNumber: string
   ): Promise<ReconciliationResult> {
+    // The DB-side org guard in the RPC is skipped for the service-role client,
+    // so verify the seed product belongs to this org before invoking it.
+    const { data: seed, error: seedError } = await db
+      .from("seed_products")
+      .select("id")
+      .eq("id", seedId)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+    if (seedError) throw seedError;
+    if (!seed) throw new Error("Seed product not found");
+
     const { data, error } = await db.rpc("check_batch_reconciliation", {
       p_seed_id: seedId,
       p_batch_number: batchNumber,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { QUERY_KEYS } from "@/hooks/use-realtime-invalidation";
+import { QUERY_KEYS } from "@/constants/query-keys";
 import type { OrderWithRelations } from "@/types/order.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
 
