@@ -133,7 +133,13 @@ export function SeedsPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-4 px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
-        <SeedsHeader total={total} canCreate={canCreate} onAdd={handleAdd} />
+        <SeedsHeader
+          total={total}
+          canCreate={canCreate}
+          search={filters.search}
+          onSearchChange={(v) => handleFiltersChange({ ...filters, search: v })}
+          onAdd={handleAdd}
+        />
         <SeedsFilters filters={filters} crops={crops} varieties={varieties} onChange={handleFiltersChange} />
       </div>
 
@@ -163,6 +169,10 @@ export function SeedsPage() {
         open={!!selectedSeed}
         onClose={() => setSelectedSeed(null)}
         canViewStock={canViewStock}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onEdit={(seed) => { setSelectedSeed(null); handleEdit(seed); }}
+        onDelete={(seed) => { setSelectedSeed(null); handleDeleteClick(seed); }}
       />
 
       <SeedFormDialog

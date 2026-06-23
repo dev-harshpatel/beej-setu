@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PencilIcon, XIcon } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -33,6 +34,12 @@ export function SeedFormDialog({ open, onOpenChange, seed, crops, onSuccess }: S
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState("");
 
+  // Crop rename (edit mode only)
+  const [renamingCrop,    setRenamingCrop]    = useState(false);
+  const [cropRenameValue, setCropRenameValue] = useState("");
+
+  const currentCropName = crops.find((c) => c.id === cropId)?.name ?? "";
+
   const cropItems = crops.map((c) => ({ value: c.id, label: c.name }));
 
   function handleCropSelect(id: string) {
@@ -53,9 +60,29 @@ export function SeedFormDialog({ open, onOpenChange, seed, crops, onSuccess }: S
     const ppb = parseInt(packetsPerBag, 10);
     if (isNaN(ppb) || ppb < 1)  { setError("Packets per bag must be at least 1"); return; }
 
+    const pendingRename = renamingCrop && cropRenameValue.trim() && cropRenameValue.trim() !== currentCropName;
+    if (pendingRename && cropRenameValue.trim().length < 2) {
+      setError("Crop name must be at least 2 characters");
+      return;
+    }
+
     setLoading(true);
     try {
       let resolvedCropId = cropId;
+
+      // Rename the existing crop if requested
+      if (pendingRename) {
+        const renameRes  = await fetch(`/api/crops/${cropId}`, {
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ name: cropRenameValue.trim() }),
+        });
+        const renameJson = await renameRes.json();
+        if (!renameRes.ok || !renameJson.success) {
+          setError(renameJson.message ?? "Failed to rename crop");
+          return;
+        }
+      }
 
       // Create the crop first if it's a new one
       if (newCropName) {
@@ -114,6 +141,42 @@ export function SeedFormDialog({ open, onOpenChange, seed, crops, onSuccess }: S
               <p className="text-xs text-muted-foreground">
                 A new crop <span className="font-medium text-foreground">{newCropName}</span> will be created on save.
               </p>
+            )}
+            {/* Rename crop — edit mode only, only when an existing crop is selected */}
+            {isEdit && cropId && !newCropName && (
+              renamingCrop ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="New crop name"
+                      value={cropRenameValue}
+                      onChange={(e) => setCropRenameValue(e.target.value)}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => { setRenamingCrop(false); setCropRenameValue(""); }}
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    This renames the crop everywhere — including all past orders.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setRenamingCrop(true); setCropRenameValue(currentCropName); }}
+                  className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <PencilIcon className="size-3" />
+                  Rename this crop
+                </button>
+              )
             )}
           </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { PackageIcon, XIcon } from "lucide-react";
+import { PackageIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -42,10 +42,14 @@ interface SeedDetailSheetProps {
   seed: SeedProductWithCropRow | null;
   open: boolean;
   canViewStock?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onClose: () => void;
+  onEdit?: (seed: SeedProductWithCropRow) => void;
+  onDelete?: (seed: SeedProductWithCropRow) => void;
 }
 
-export function SeedDetailSheet({ seed, open, canViewStock = false, onClose }: SeedDetailSheetProps) {
+export function SeedDetailSheet({ seed, open, canViewStock = false, canEdit = false, canDelete = false, onClose, onEdit, onDelete }: SeedDetailSheetProps) {
   if (!seed) return null;
 
   const stock = seed.stock ?? [];
@@ -123,6 +127,34 @@ export function SeedDetailSheet({ seed, open, canViewStock = false, onClose }: S
             </>
           )}
         </div>
+
+        {/* Actions footer */}
+        {(canEdit || canDelete) && (
+          <div className="shrink-0 border-t border-border px-5 py-3 flex gap-2">
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => { onClose(); onEdit?.(seed); }}
+              >
+                <PencilIcon className="size-3.5" />
+                Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => { onClose(); onDelete?.(seed); }}
+              >
+                <Trash2Icon className="size-3.5" />
+                Delete
+              </Button>
+            )}
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

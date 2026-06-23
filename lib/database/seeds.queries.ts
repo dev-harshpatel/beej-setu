@@ -123,6 +123,18 @@ export const seedsQueries = {
     return data as CropRow;
   },
 
+  async updateCrop(db: SupabaseClient<Database>, id: string, orgId: string, name: string): Promise<CropRow> {
+    const { data, error } = await db
+      .from("crops")
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("organization_id", orgId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data as CropRow;
+  },
+
   async create(
     db: SupabaseClient<Database>,
     orgId: string,
