@@ -95,7 +95,7 @@ export function DealersTable({
             )}
             <TableHead>Dealer Name</TableHead>
             {!isStaff && <TableHead>Assigned Staff</TableHead>}
-            <TableHead>Contact</TableHead>
+            <TableHead>Transport</TableHead>
             <TableHead className="hidden lg:table-cell">Territory</TableHead>
             <TableHead>Status</TableHead>
             {(canEdit || canDelete) && <TableHead className="w-20 text-right">Actions</TableHead>}

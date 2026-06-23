@@ -68,6 +68,7 @@ export function OrdersTabs() {
   const [exporting, setExporting]                 = useState(false);
   const [selectedOrderIds, setSelectedOrderIds]   = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen]       = useState(false);
+  const [deleteTarget, setDeleteTarget]           = useState<OrderWithRelations | null>(null);
 
   const resolvedStatus: OrderStatusValue | undefined = isDispatchStaff
     ? DISPATCH_TAB_STATUS[activeTab as keyof typeof DISPATCH_TAB_STATUS]
@@ -145,6 +146,11 @@ export function OrdersTabs() {
 
   function handleCreateChallan(order: OrderWithRelations) {
     router.push(ROUTES.ORDERS.CHALLAN(order.id));
+  }
+
+  function handleDeleteSingle(order: OrderWithRelations) {
+    setDeleteTarget(order);
+    setBulkDeleteOpen(true);
   }
 
   async function handleUpdate(
@@ -288,6 +294,7 @@ export function OrdersTabs() {
           onHold={handleHold}
           onCancel={handleCancel}
           onCreateChallan={handleCreateChallan}
+          onDelete={canDelete ? handleDeleteSingle : undefined}
           onReset={handleReset}
         />
       </div>
@@ -319,13 +326,18 @@ export function OrdersTabs() {
         onRefresh={invalidateOrders}
       />
 
-      {/* Bulk delete modal */}
+      {/* Delete modal — handles both single-order and bulk delete */}
       <OrderBulkDeleteDialog
         open={bulkDeleteOpen}
-        onOpenChange={setBulkDeleteOpen}
-        count={selectedOrderIds.size}
-        ids={[...selectedOrderIds]}
-        onSuccess={() => { invalidateOrders(); setSelectedOrderIds(new Set()); setBulkDeleteOpen(false); }}
+        onOpenChange={(o) => { setBulkDeleteOpen(o); if (!o) setDeleteTarget(null); }}
+        count={deleteTarget ? 1 : selectedOrderIds.size}
+        ids={deleteTarget ? [deleteTarget.id] : [...selectedOrderIds]}
+        onSuccess={() => {
+          invalidateOrders();
+          setSelectedOrderIds(new Set());
+          setDeleteTarget(null);
+          setBulkDeleteOpen(false);
+        }}
       />
 
       {/* Batch approval modal */}

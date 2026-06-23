@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
-import { CheckCircleIcon, PencilIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckCircleIcon, PackageIcon, PencilIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ROUTES } from "@/constants/routes.constants";
 import {
   Select,
   SelectContent,
@@ -50,6 +52,7 @@ export function OrderConfirmModal({
   const currentUser = useAuthStore((s) => s.user);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isStockError, setIsStockError] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
 
   // User batch overrides (starts empty; key-based remount resets on new order)
@@ -102,7 +105,10 @@ export function OrderConfirmModal({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.message ?? "Failed to confirm order. Check stock levels.");
+        const msg = json.message ?? "Failed to confirm order. Check stock levels.";
+        const stockErr = res.status === 422 && (msg.includes("Insufficient stock") || msg.includes("insufficient stock"));
+        setIsStockError(stockErr);
+        setError(msg);
         return;
       }
       // Build approval WhatsApp message
@@ -138,6 +144,7 @@ export function OrderConfirmModal({
 
   function handleClose() {
     setError(null);
+    setIsStockError(false);
     setWhatsappMessage(null);
     onClose();
   }
@@ -279,7 +286,30 @@ export function OrderConfirmModal({
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && !isStockError && (
+            <p className="text-sm text-destructive">{error}</p>
+          )}
+          {isStockError && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangleIcon className="size-4 text-destructive shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-destructive">Insufficient Inventory</p>
+                  <p className="text-sm text-muted-foreground">
+                    One or more items in this order don&apos;t have enough stock to be fulfilled.
+                    Restock the inventory and then approve this order.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={ROUTES.STOCK.LEDGER}
+                className={buttonVariants({ variant: "outline", size: "sm" }) + " self-start gap-1.5"}
+              >
+                <PackageIcon className="size-3.5" />
+                Go to Inventory
+              </Link>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">

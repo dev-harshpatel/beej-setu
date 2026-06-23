@@ -6,6 +6,7 @@ import {
   PauseCircleIcon,
   PencilIcon,
   SendIcon,
+  Trash2Icon,
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ interface OrderCardProps {
   onHold: (order: OrderWithRelations) => void;
   onCancel: (order: OrderWithRelations) => void;
   onCreateChallan: (order: OrderWithRelations) => void;
+  onDelete?: (order: OrderWithRelations) => void;
 }
 
 export function OrderCard({
@@ -58,6 +60,7 @@ export function OrderCard({
   onHold,
   onCancel,
   onCreateChallan,
+  onDelete,
 }: OrderCardProps) {
   const status = order.status as OrderStatusValue;
   const isPending = status === ORDER_STATUSES.PENDING;
@@ -154,6 +157,15 @@ export function OrderCard({
                 Edit
               </Button>
             )}
+            {canDelete && onDelete && (
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                onClick={() => onDelete(order)}
+              >
+                <Trash2Icon className="size-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       ) : (
@@ -196,6 +208,16 @@ export function OrderCard({
             >
               <PencilIcon className="size-3.5" />
               Edit
+            </Button>
+          )}
+
+          {canDelete && onDelete && (
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+              onClick={() => onDelete(order)}
+            >
+              <Trash2Icon className="size-3.5" />
             </Button>
           )}
         </div>

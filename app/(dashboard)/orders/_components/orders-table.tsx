@@ -20,6 +20,7 @@ interface OrdersTableProps {
   onHold: (order: OrderWithRelations) => void;
   onCancel: (order: OrderWithRelations) => void;
   onCreateChallan: (order: OrderWithRelations) => void;
+  onDelete?: (order: OrderWithRelations) => void;
   onReset?: () => void;
 }
 
@@ -36,6 +37,7 @@ export function OrdersTable({
   onHold,
   onCancel,
   onCreateChallan,
+  onDelete,
   onReset,
 }: OrdersTableProps) {
   if (loading) {
@@ -68,6 +70,7 @@ export function OrdersTable({
     onHold,
     onCancel,
     onCreateChallan,
+    onDelete,
   };
 
   return (

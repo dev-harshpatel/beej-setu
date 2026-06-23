@@ -4,6 +4,7 @@ import {
   PauseCircleIcon,
   PencilIcon,
   SendIcon,
+  Trash2Icon,
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ interface OrdersTableDesktopProps {
   onHold: (order: OrderWithRelations) => void;
   onCancel: (order: OrderWithRelations) => void;
   onCreateChallan: (order: OrderWithRelations) => void;
+  onDelete?: (order: OrderWithRelations) => void;
 }
 
 const th = "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground";
@@ -39,7 +41,7 @@ const tr = "border-b transition-colors hover:bg-muted/50";
 export function OrdersTableDesktop({
   orders, isDispatchStaff, processingOrderId,
   canDelete, selectedIds, onSelectionChange,
-  onEdit, onApprove, onHold, onCancel, onCreateChallan,
+  onEdit, onApprove, onHold, onCancel, onCreateChallan, onDelete,
 }: OrdersTableDesktopProps) {
   const showCheckboxes = canDelete && !!onSelectionChange;
 
@@ -208,6 +210,17 @@ export function OrdersTableDesktop({
                         onClick={() => onEdit(order)}
                       >
                         <PencilIcon className="size-3.5" />Edit
+                      </Button>
+                    )}
+
+                    {canDelete && onDelete && (
+                      <Button
+                        size="sm" variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onDelete(order)}
+                        title="Delete order"
+                      >
+                        <Trash2Icon className="size-3.5" />
                       </Button>
                     )}
                   </div>

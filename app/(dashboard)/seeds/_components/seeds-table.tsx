@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,10 +37,16 @@ interface SeedsTableProps {
   products: SeedProductWithCropRow[];
   loading: boolean;
   canViewStock?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onRowClick?: (product: SeedProductWithCropRow) => void;
+  onEdit?: (product: SeedProductWithCropRow) => void;
+  onDelete?: (product: SeedProductWithCropRow) => void;
 }
 
-export function SeedsTable({ products, loading, canViewStock = false, onRowClick }: SeedsTableProps) {
+export function SeedsTable({ products, loading, canViewStock = false, canEdit = false, canDelete = false, onRowClick, onEdit, onDelete }: SeedsTableProps) {
+  const hasActions = canEdit || canDelete;
+
   const headerRow = (
     <TableHeader className="sticky top-0 z-10 [&_th]:bg-card">
       <TableRow>
@@ -49,8 +55,8 @@ export function SeedsTable({ products, loading, canViewStock = false, onRowClick
         <TableHead className="hidden sm:table-cell text-right">Pack Size</TableHead>
         <TableHead className="hidden sm:table-cell text-right">Pkts / Bag</TableHead>
         {canViewStock && <TableHead className="hidden sm:table-cell">Status</TableHead>}
-        {/* Mobile-only detail trigger column */}
-        <TableHead className="sm:hidden w-10" />
+        {/* Actions column (desktop) / mobile detail trigger */}
+        <TableHead className="w-10 sm:w-20" />
       </TableRow>
     </TableHeader>
   );
@@ -68,7 +74,7 @@ export function SeedsTable({ products, loading, canViewStock = false, onRowClick
                 <TableCell className="hidden sm:table-cell text-right"><Skeleton className="h-4 w-14 ml-auto" /></TableCell>
                 <TableCell className="hidden sm:table-cell text-right"><Skeleton className="h-4 w-10 ml-auto" /></TableCell>
                 {canViewStock && <TableCell className="hidden sm:table-cell"><Skeleton className="h-5 w-14 rounded-full" /></TableCell>}
-                <TableCell className="sm:hidden w-10" />
+                <TableCell className="w-10 sm:w-20" />
               </TableRow>
             ))}
           </TableBody>
@@ -93,10 +99,27 @@ export function SeedsTable({ products, loading, canViewStock = false, onRowClick
                   <StockStatusBadge stock={p.stock ?? []} packetsPerBag={p.packets_per_bag} />
                 </TableCell>
               )}
-              <TableCell className="sm:hidden w-10 pr-2">
+              <TableCell className="w-10 sm:w-20 pr-2">
+                {/* Desktop: edit + delete buttons */}
+                {hasActions ? (
+                  <div className="hidden sm:flex items-center justify-end gap-1">
+                    {canEdit && (
+                      <Button variant="ghost" size="icon-sm" onClick={() => onEdit?.(p)} aria-label="Edit">
+                        <PencilIcon className="size-3.5 text-muted-foreground" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button variant="ghost" size="icon-sm" onClick={() => onDelete?.(p)} aria-label="Delete">
+                        <Trash2Icon className="size-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ) : null}
+                {/* Mobile: chevron to detail sheet */}
                 <Button
                   variant="ghost"
                   size="icon-sm"
+                  className="sm:hidden"
                   onClick={() => onRowClick?.(p)}
                 >
                   <ChevronRightIcon className="size-4 text-muted-foreground" />

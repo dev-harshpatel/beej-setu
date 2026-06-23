@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
@@ -11,6 +11,8 @@ import { SeedsTable } from "./seeds-table";
 import { SeedsEmpty } from "./seeds-empty";
 import { SeedsPagination } from "./seeds-pagination";
 import { SeedDetailSheet } from "./seed-detail-sheet";
+import { SeedFormDialog } from "./seed-form-dialog";
+import { SeedDeleteDialog } from "./seed-delete-dialog";
 import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
 import type { CropRow } from "@/types/database.types";
 
@@ -19,10 +21,23 @@ const PAGE_SIZE = PAGINATION_DEFAULTS.PAGE_SIZE;
 export function SeedsPage() {
   const { hasPermission } = usePermissions();
   const canViewStock = hasPermission(PERMISSIONS.STOCK_MANAGE);
+  const canCreate    = hasPermission(PERMISSIONS.SEEDS_CREATE);
+  const canEdit      = hasPermission(PERMISSIONS.SEEDS_EDIT);
+  const canDelete    = hasPermission(PERMISSIONS.SEEDS_DELETE);
+
+  const queryClient = useQueryClient();
 
   const [page, setPage]     = useState(1);
   const [filters, setFilters] = useState<SeedFilters>({ search: "", cropId: "", variety: "" });
   const [selectedSeed, setSelectedSeed] = useState<SeedProductWithCropRow | null>(null);
+
+  // Form dialog state
+  const [formOpen,    setFormOpen]    = useState(false);
+  const [editTarget,  setEditTarget]  = useState<SeedProductWithCropRow | null>(null);
+
+  // Delete dialog state
+  const [deleteOpen,   setDeleteOpen]   = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SeedProductWithCropRow | null>(null);
 
   // All seed products (server-side cropId/variety filter, client-side text search)
   const { data: allProducts = [], isFetching: productsFetching } = useQuery<SeedProductWithCropRow[]>({
@@ -72,6 +87,27 @@ export function SeedsPage() {
     setPage(1);
   }
 
+  function handleAdd() {
+    setEditTarget(null);
+    setFormOpen(true);
+  }
+
+  function handleEdit(seed: SeedProductWithCropRow) {
+    setEditTarget(seed);
+    setFormOpen(true);
+  }
+
+  function handleDeleteClick(seed: SeedProductWithCropRow) {
+    setDeleteTarget(seed);
+    setDeleteOpen(true);
+  }
+
+  function invalidateSeeds() {
+    queryClient.invalidateQueries({ queryKey: ["seed-products"] });
+    queryClient.invalidateQueries({ queryKey: ["seed-varieties"] });
+    queryClient.invalidateQueries({ queryKey: ["crops"] });
+  }
+
   // Client-side text search (instant, no round-trips)
   const filteredProducts = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
@@ -97,7 +133,7 @@ export function SeedsPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-4 px-4 sm:px-5 pt-3 sm:pt-4 pb-3 shrink-0">
-        <SeedsHeader total={total} />
+        <SeedsHeader total={total} canCreate={canCreate} onAdd={handleAdd} />
         <SeedsFilters filters={filters} crops={crops} varieties={varieties} onChange={handleFiltersChange} />
       </div>
 
@@ -105,7 +141,16 @@ export function SeedsPage() {
         {!loading && products.length === 0 ? (
           <SeedsEmpty hasFilters={hasFilters} />
         ) : (
-          <SeedsTable products={products} loading={loading} onRowClick={setSelectedSeed} canViewStock={canViewStock} />
+          <SeedsTable
+            products={products}
+            loading={loading}
+            canViewStock={canViewStock}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onRowClick={setSelectedSeed}
+            onEdit={handleEdit}
+            onDelete={handleDeleteClick}
+          />
         )}
       </div>
 
@@ -118,6 +163,22 @@ export function SeedsPage() {
         open={!!selectedSeed}
         onClose={() => setSelectedSeed(null)}
         canViewStock={canViewStock}
+      />
+
+      <SeedFormDialog
+        key={editTarget?.id ?? "new"}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        seed={editTarget}
+        crops={crops}
+        onSuccess={invalidateSeeds}
+      />
+
+      <SeedDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        seed={deleteTarget}
+        onSuccess={invalidateSeeds}
       />
     </div>
   );

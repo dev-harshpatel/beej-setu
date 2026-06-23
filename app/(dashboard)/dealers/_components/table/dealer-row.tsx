@@ -79,7 +79,9 @@ export function DealerRow({
           {dealer.staff?.name ?? <span className="italic opacity-50">Unassigned</span>}
         </TableCell>
       )}
-      <TableCell className="hidden md:table-cell text-sm tabular-nums">{dealer.contact}</TableCell>
+      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+        {dealer.default_transport ?? <span className="italic opacity-50">—</span>}
+      </TableCell>
       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
         {dealer.territory ?? "—"}
       </TableCell>

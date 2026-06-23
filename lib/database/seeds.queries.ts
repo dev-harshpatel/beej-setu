@@ -112,4 +112,55 @@ export const seedsQueries = {
     if (error) throw error;
     return data ?? [];
   },
+
+  async createCrop(db: SupabaseClient<Database>, orgId: string, name: string): Promise<CropRow> {
+    const { data, error } = await db
+      .from("crops")
+      .insert({ organization_id: orgId, name })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data as CropRow;
+  },
+
+  async create(
+    db: SupabaseClient<Database>,
+    orgId: string,
+    payload: { crop_id: string; variety: string; pack_size: string; packets_per_bag: number }
+  ): Promise<SeedProductWithCropRow> {
+    const { data, error } = await db
+      .from("seed_products")
+      .insert({ ...payload, organization_id: orgId, status: "ACTIVE" })
+      .select(SEED_SELECT)
+      .single();
+    if (error) throw error;
+    return data as SeedProductWithCropRow;
+  },
+
+  async update(
+    db: SupabaseClient<Database>,
+    id: string,
+    orgId: string,
+    payload: Partial<{ crop_id: string; variety: string; pack_size: string; packets_per_bag: number; status: SeedProductRow["status"] }>
+  ): Promise<SeedProductWithCropRow> {
+    const { data, error } = await db
+      .from("seed_products")
+      .update(payload)
+      .eq("id", id)
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .select(SEED_SELECT)
+      .single();
+    if (error) throw error;
+    return data as SeedProductWithCropRow;
+  },
+
+  async delete(db: SupabaseClient<Database>, id: string, orgId: string): Promise<void> {
+    const { error } = await db
+      .from("seed_products")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("organization_id", orgId);
+    if (error) throw error;
+  },
 };

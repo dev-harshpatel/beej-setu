@@ -38,6 +38,7 @@ type CropRowState = {
   seedId: string;
   unit: "Bag" | "Packet" | "Box";
   quantity: number;
+  quantityRaw: string;
   seedName: string;
   cropName: string;
   packetsPerBag: number;
@@ -54,6 +55,7 @@ function newRow(): CropRowState {
     seedId: "",
     unit: "Bag",
     quantity: 1,
+    quantityRaw: "1",
     seedName: "",
     cropName: "",
     packetsPerBag: 0,
@@ -89,7 +91,7 @@ export function CreateOrderForm() {
       .then((json) => setDealers(json.data?.data ?? []))
       .catch(() => setDealers([]));
 
-    fetch("/api/seeds?pageSize=500&excludeZeroStock=true")
+    fetch("/api/seeds?pageSize=500")
       .then((r) => r.json())
       .then((json) => setSeeds(json.data?.data ?? []))
       .catch(() => setSeeds([]));
@@ -160,15 +162,27 @@ export function CreateOrderForm() {
 
   function handleQuantityChange(rowId: string, delta: number) {
     setCropRows((rows) =>
-      rows.map((r) =>
-        r.id === rowId ? { ...r, quantity: Math.max(1, r.quantity + delta) } : r
-      )
+      rows.map((r) => {
+        if (r.id !== rowId) return r;
+        const next = Math.max(1, r.quantity + delta);
+        return { ...r, quantity: next, quantityRaw: String(next) };
+      })
     );
   }
 
   function handleQuantityInput(rowId: string, value: string) {
     const n = parseInt(value, 10);
-    if (!isNaN(n) && n >= 1) updateCropRow(rowId, { quantity: n });
+    setCropRows((rows) =>
+      rows.map((r) => {
+        if (r.id !== rowId) return r;
+        const valid = !isNaN(n) && n >= 1;
+        return {
+          ...r,
+          quantityRaw: valid ? String(n) : value,
+          quantity: valid ? n : r.quantity,
+        };
+      })
+    );
   }
 
   function addCropRow() {
@@ -185,7 +199,9 @@ export function CreateOrderForm() {
   const step3Done = cropRows.some((r) => !!r.seedId);
 
   const canProceed =
-    step1Done && cropRows.length > 0 && cropRows.every((r) => r.seedId && r.quantity >= 1);
+    step1Done &&
+    cropRows.length > 0 &&
+    cropRows.every((r) => r.seedId && parseInt(r.quantityRaw, 10) >= 1);
 
   const confirmItems: ConfirmOrderItem[] = cropRows
     .filter((r) => r.seedId)
@@ -504,9 +520,9 @@ export function CreateOrderForm() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
                     <Label>Quantity <span className="text-destructive">*</span></Label>
-                    <div className="flex h-8 items-center rounded-lg border border-input overflow-hidden">
+                    <div className={`flex h-8 w-full items-center rounded-lg border overflow-hidden ${parseInt(row.quantityRaw, 10) < 1 || row.quantityRaw === "" ? "border-destructive" : "border-input"}`}>
                       <button
                         type="button"
                         onClick={() => handleQuantityChange(row.id, -1)}
@@ -518,9 +534,19 @@ export function CreateOrderForm() {
                       <input
                         type="number"
                         min={1}
-                        value={row.quantity}
+                        value={row.quantityRaw}
                         onChange={(e) => handleQuantityInput(row.id, e.target.value)}
-                        className="flex-1 h-full text-center text-sm font-medium tabular-nums bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        onBlur={() => {
+                          const n = parseInt(row.quantityRaw, 10);
+                          if (isNaN(n) || n < 1) {
+                            setCropRows((rows) =>
+                              rows.map((r) =>
+                                r.id === row.id ? { ...r, quantityRaw: String(r.quantity) } : r
+                              )
+                            );
+                          }
+                        }}
+                        className="min-w-0 flex-1 h-full text-center text-sm font-medium tabular-nums bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button
                         type="button"
@@ -531,6 +557,9 @@ export function CreateOrderForm() {
                         <PlusIcon className="size-3.5" />
                       </button>
                     </div>
+                    {(row.quantityRaw === "" || parseInt(row.quantityRaw, 10) < 1) && (
+                      <p className="text-xs text-destructive">Quantity is required</p>
+                    )}
                   </div>
                 </div>
 
