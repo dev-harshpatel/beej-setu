@@ -28,6 +28,7 @@ export const POST = withAuth(
     }
 
     await usersQueries.bulkSoftDelete(db, ids as string[], auth.orgId);
+    await Promise.all((ids as string[]).map((id) => db.auth.admin.deleteUser(id)));
     return apiSuccess(null, `${ids.length} user(s) deleted`);
   },
   PERMISSIONS.USERS_DELETE

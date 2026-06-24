@@ -53,9 +53,25 @@ export const GET = withAuth(
       reconciliation = await stockMovementsQueries.getReconciliation(db, orgId, seedId, batchNumber);
     } catch { /* ignore */ }
 
-    // Generate PDF via Playwright
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch();
+    // Generate PDF via Playwright (local) or @sparticuz/chromium (Vercel/serverless)
+    const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+    let chromiumModule: typeof import("playwright").chromium;
+    let executablePath: string | undefined;
+    let launchArgs: string[] | undefined;
+
+    if (isServerless) {
+      const sparticuzChromium = (await import("@sparticuz/chromium")).default;
+      executablePath = await sparticuzChromium.executablePath();
+      launchArgs = sparticuzChromium.args;
+      chromiumModule = (await import("playwright-core")).chromium;
+    } else {
+      chromiumModule = (await import("playwright")).chromium;
+    }
+
+    const browser = await chromiumModule.launch({
+      ...(executablePath ? { executablePath } : {}),
+      ...(launchArgs ? { args: launchArgs } : {}),
+    });
     const page    = await browser.newPage();
     await page.setContent(buildHtml(batch, movements, summary, reconciliation), { waitUntil: "networkidle" });
     const pdf = await page.pdf({

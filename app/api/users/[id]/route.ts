@@ -61,6 +61,7 @@ export const DELETE = withAuth(
     }
 
     await usersQueries.softDelete(db, id, auth.orgId);
+    await db.auth.admin.deleteUser(id);
     return apiSuccess(null, "User deleted");
   },
   PERMISSIONS.USERS_DELETE
