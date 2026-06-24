@@ -32,7 +32,14 @@ export function SettingsOrganizationForm() {
     formState: { errors, isSubmitting },
   } = useForm<UpdateOrganizationFormValues>({
     resolver: zodResolver(updateOrganizationSchema),
-    defaultValues: { name: organization?.name ?? "" },
+    defaultValues: {
+      name: organization?.name ?? "",
+      address: organization?.address ?? "",
+      gstNumber: organization?.gstNumber ?? "",
+      phone: organization?.phone ?? "",
+      email: organization?.email ?? "",
+      seedLicenceNumber: organization?.seedLicenceNumber ?? "",
+    },
   });
 
   function applyOrganization(next: Organization, message: string) {
@@ -53,7 +60,7 @@ export function SettingsOrganizationForm() {
     setServerError(null);
     setSuccess(null);
     try {
-      const next = await settingsService.updateOrganization({ name: values.name });
+      const next = await settingsService.updateOrganization(values);
       applyOrganization(next, "Organization updated successfully.");
     } catch (err: unknown) {
       setServerError(getApiErrorMessage(err, "Failed to update organization"));
@@ -72,7 +79,7 @@ export function SettingsOrganizationForm() {
                 <img
                   src={organization.logoUrl}
                   alt=""
-                  className="size-full object-cover"
+                  className="size-full object-contain"
                 />
               ) : (
                 <Building2 className="size-5" />
@@ -103,13 +110,13 @@ export function SettingsOrganizationForm() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
               className="hidden"
               onChange={onPickFile}
             />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            PNG, JPEG, or WebP up to 2 MB. You can crop and zoom before saving.
+            PNG, JPEG, WebP, GIF, or SVG up to 5 MB. You can crop and zoom before saving.
           </p>
         </Field>
 
@@ -125,6 +132,68 @@ export function SettingsOrganizationForm() {
           <p className="mt-1 text-xs text-muted-foreground">
             Shown in the sidebar for everyone in your company.
           </p>
+        </Field>
+
+        <Field data-invalid={!!errors.address}>
+          <FieldLabel htmlFor="org-address">Address</FieldLabel>
+          <Input
+            id="org-address"
+            placeholder="123, Industrial Estate Road, Near Bus Stand, Anytown"
+            autoComplete="street-address"
+            {...register("address")}
+          />
+          <FieldError errors={[errors.address]} />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Printed on the delivery challan letterhead.
+          </p>
+        </Field>
+
+        <Field data-invalid={!!errors.phone}>
+          <FieldLabel htmlFor="org-phone">Phone</FieldLabel>
+          <Input
+            id="org-phone"
+            placeholder="+91 98765 43210, +91 91234 56789"
+            autoComplete="tel"
+            {...register("phone")}
+          />
+          <FieldError errors={[errors.phone]} />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Separate multiple numbers with a comma.
+          </p>
+        </Field>
+
+        <Field data-invalid={!!errors.email}>
+          <FieldLabel htmlFor="org-email">Email</FieldLabel>
+          <Input
+            id="org-email"
+            type="email"
+            placeholder="company@example.com"
+            autoComplete="email"
+            {...register("email")}
+          />
+          <FieldError errors={[errors.email]} />
+        </Field>
+
+        <Field data-invalid={!!errors.gstNumber}>
+          <FieldLabel htmlFor="org-gst">GSTIN</FieldLabel>
+          <Input
+            id="org-gst"
+            placeholder="22ABCDE1234F1Z5"
+            className="font-mono"
+            {...register("gstNumber")}
+          />
+          <FieldError errors={[errors.gstNumber]} />
+        </Field>
+
+        <Field data-invalid={!!errors.seedLicenceNumber}>
+          <FieldLabel htmlFor="org-licence">Seed Licence No.</FieldLabel>
+          <Input
+            id="org-licence"
+            placeholder="STX/LIC123456/2024-2025"
+            className="font-mono"
+            {...register("seedLicenceNumber")}
+          />
+          <FieldError errors={[errors.seedLicenceNumber]} />
         </Field>
 
         {serverError && (

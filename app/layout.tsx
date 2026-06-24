@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
+  icons: {
+    icon: "/beej-setu-ico.ico",
+  },
 };
 
 export default function RootLayout({

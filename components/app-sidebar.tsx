@@ -28,7 +28,7 @@ function OrgLogo({ logoUrl }: { logoUrl: string | null | undefined }) {
           key={logoUrl} // re-attempt when the url changes
           src={logoUrl}
           alt=""
-          className="size-full object-cover"
+          className="size-full object-contain"
           onError={() => setBroken(true)}
         />
       ) : (

@@ -31,6 +31,11 @@ export interface Database {
           name: string;
           slug: string;
           logo_url: string | null;
+          address: string | null;
+          gst_number: string | null;
+          phone: string | null;
+          email: string | null;
+          seed_licence_number: string | null;
           status: OrganizationStatus;
           settings: Json;
           created_at: string;
@@ -41,6 +46,11 @@ export interface Database {
           name: string;
           slug: string;
           logo_url?: string | null;
+          address?: string | null;
+          gst_number?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          seed_licence_number?: string | null;
           status?: OrganizationStatus;
           settings?: Json;
           created_at?: string;

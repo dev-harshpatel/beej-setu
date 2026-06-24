@@ -5,7 +5,10 @@ import type { PaginationParams } from "@/types/common.types";
 // Never include encrypted_password — it must only be accessed via the dedicated server-side endpoint.
 const PROFILE_COLUMNS = "id, organization_id, name, username, phone, role, is_active, profile_image, territory, created_at, updated_at, deleted_at";
 
-export type ProfileOrganization = Pick<OrganizationRow, "id" | "name" | "slug" | "logo_url" | "status">;
+export type ProfileOrganization = Pick<
+  OrganizationRow,
+  "id" | "name" | "slug" | "logo_url" | "address" | "gst_number" | "phone" | "email" | "seed_licence_number" | "status"
+>;
 
 export type ProfileWithOrgRow = ProfileRow & {
   organization: ProfileOrganization;
@@ -36,7 +39,7 @@ export const usersQueries = {
   ): Promise<ProfileWithOrgRow | null> {
     const { data, error } = await db
       .from("profiles")
-      .select(`${PROFILE_COLUMNS}, organization:organizations(id, name, slug, logo_url, status)`)
+      .select(`${PROFILE_COLUMNS}, organization:organizations(id, name, slug, logo_url, address, gst_number, phone, email, seed_licence_number, status)`)
       .eq("id", id)
       .is("deleted_at", null)
       .single();

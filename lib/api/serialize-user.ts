@@ -8,6 +8,11 @@ export function serializeOrganization(org: ProfileOrganization): Organization {
     name: org.name,
     slug: org.slug,
     logoUrl: org.logo_url,
+    address: org.address,
+    gstNumber: org.gst_number,
+    phone: org.phone,
+    email: org.email,
+    seedLicenceNumber: org.seed_licence_number,
     status: org.status,
   };
 }

@@ -50,16 +50,14 @@ export function buildOrderWhatsAppMessage(params: OrderShareParams): string {
 export interface ApprovalShareParams {
   orderNumber: string;
   dealer: DealerRow;
-  staffName?: string;
   approvedBy?: string;
-  center?: string;
   transportName?: string;
   notes?: string;
   items: OrderShareItem[];
 }
 
 export function buildApprovalWhatsAppMessage(params: ApprovalShareParams): string {
-  const { orderNumber, dealer, staffName, approvedBy, center, transportName, notes, items } = params;
+  const { orderNumber, dealer, approvedBy, transportName, notes, items } = params;
   const date = _today();
   const lines: string[] = [];
 
@@ -69,9 +67,7 @@ export function buildApprovalWhatsAppMessage(params: ApprovalShareParams): strin
   if (approvedBy) lines.push(`*Approved by:* ${approvedBy}`);
   lines.push("");
   lines.push(`*Dealer:* ${dealer.name}`);
-  if (dealer.territory) lines.push(`*Territory:* ${dealer.territory}`);
-  if (staffName)        lines.push(`*Staff:* ${staffName}`);
-  if (center)           lines.push(`*Center:* ${center}`);
+  if (dealer.contact)   lines.push(`*Contact:* ${dealer.contact}`);
   if (transportName)    lines.push(`*Transport:* ${transportName}`);
   lines.push("");
   lines.push("*Items:*");
@@ -79,6 +75,19 @@ export function buildApprovalWhatsAppMessage(params: ApprovalShareParams): strin
     const batch = item.batchNumber ? ` [Batch: ${item.batchNumber}]` : "";
     lines.push(`${i + 1}. ${item.cropName} — ${item.seedName} × ${item.quantity} ${item.unit}${batch}`);
   });
+
+  const totals: Record<string, number> = {};
+  for (const item of items) {
+    totals[item.unit] = (totals[item.unit] ?? 0) + item.quantity;
+  }
+  const totalStr = Object.entries(totals)
+    .map(([u, q]) => `${q} ${u}${q !== 1 ? "s" : ""}`)
+    .join(" + ");
+  if (totalStr) {
+    lines.push("");
+    lines.push(`*Total: ${totalStr}*`);
+  }
+
   if (notes) {
     lines.push("");
     lines.push(`*Delivery Instructions:* ${notes}`);
@@ -91,7 +100,7 @@ export function buildApprovalWhatsAppMessage(params: ApprovalShareParams): strin
 
 export interface GodownDispatchShareParams {
   orderNumber: string;
-  challanNumber: string;
+  godownDispatchDate: string;
   dealer: DealerRow;
   transport?: string;
   dispatchedBy?: string;
@@ -100,17 +109,15 @@ export interface GodownDispatchShareParams {
 }
 
 export function buildGodownDispatchWhatsAppMessage(params: GodownDispatchShareParams): string {
-  const { orderNumber, challanNumber, dealer, transport, dispatchedBy, notes, items } = params;
-  const date = _today();
+  const { orderNumber, godownDispatchDate, dealer, transport, dispatchedBy, notes, items } = params;
   const lines: string[] = [];
 
   lines.push("*Godown Dispatch*");
   lines.push(`Order: ${orderNumber}`);
-  lines.push(`Challan: ${challanNumber}`);
-  lines.push(`Date: ${date}`);
+  lines.push(`Godown Dispatch Date: ${_fmt(godownDispatchDate)}`);
   if (dispatchedBy) lines.push(`*Dispatched by:* ${dispatchedBy}`);
   lines.push("");
-  lines.push(`*Deliver To:* ${dealer.name}`);
+  lines.push(`*Dealer:* ${dealer.name}`);
   if (dealer.territory) lines.push(`*Territory:* ${dealer.territory}`);
   if (dealer.contact)   lines.push(`*Contact:* ${dealer.contact}`);
   if (transport)        lines.push(`*Transport:* ${transport}`);
@@ -126,7 +133,7 @@ export function buildGodownDispatchWhatsAppMessage(params: GodownDispatchSharePa
   for (const item of items) {
     totals[item.unit] = (totals[item.unit] ?? 0) + item.quantity;
   }
-  const totalStr = Object.entries(totals).map(([u, q]) => `${q} ${u}${q !== 1 ? "s" : ""}`).join(", ");
+  const totalStr = Object.entries(totals).map(([u, q]) => `${q} ${u}${q !== 1 ? "s" : ""}`).join(" + ");
   if (totalStr) {
     lines.push("");
     lines.push(`*Total: ${totalStr}*`);
@@ -144,30 +151,27 @@ export function buildGodownDispatchWhatsAppMessage(params: GodownDispatchSharePa
 
 export interface TransportDispatchShareParams {
   orderNumber: string;
-  challanNumber: string;
   dealer: DealerRow;
   transport?: string;
   lrNumber?: string;
   transportDate?: string;
-  dispatchedBy?: string;
   items: OrderShareItem[];
 }
 
 export function buildTransportDispatchWhatsAppMessage(params: TransportDispatchShareParams): string {
-  const { orderNumber, challanNumber, dealer, transport, lrNumber, transportDate, dispatchedBy, items } = params;
+  const { orderNumber, dealer, transport, lrNumber, transportDate, items } = params;
   const lines: string[] = [];
 
   lines.push("*Transport Dispatched*");
   lines.push(`Order: ${orderNumber}`);
-  lines.push(`Challan: ${challanNumber}`);
-  if (transportDate) lines.push(`Dispatch Date: ${_fmt(transportDate)}`);
-  if (dispatchedBy)  lines.push(`*Dispatched by:* ${dispatchedBy}`);
   lines.push("");
   lines.push(`*Deliver To:* ${dealer.name}`);
   if (dealer.territory) lines.push(`*Territory:* ${dealer.territory}`);
   if (dealer.contact)   lines.push(`*Contact:* ${dealer.contact}`);
   if (transport)        lines.push(`*Transport:* ${transport}`);
-  if (lrNumber)         lines.push(`*LR Number:* ${lrNumber}`);
+  lines.push("");
+  if (lrNumber)       lines.push(`Transport LR No: ${lrNumber}`);
+  if (transportDate)  lines.push(`Transport Dispatch Date: ${_fmt(transportDate)}`);
   lines.push("");
   lines.push("*Items:*");
   items.forEach((item, i) => {

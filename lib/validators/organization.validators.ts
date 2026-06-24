@@ -27,6 +27,11 @@ export type RegisterOrganizationFormValues = z.infer<typeof registerOrganization
 // (/api/settings/organization/logo) — never as a free-form URL.
 export const updateOrganizationSchema = z.object({
   name: z.string().min(2, "Company name must be at least 2 characters").max(100),
+  address: z.string().max(300).optional().or(z.literal("")),
+  gstNumber: z.string().max(20).optional().or(z.literal("")),
+  phone: z.string().max(100).optional().or(z.literal("")),
+  email: z.email("Enter a valid email").optional().or(z.literal("")),
+  seedLicenceNumber: z.string().max(60).optional().or(z.literal("")),
 });
 
 export type UpdateOrganizationFormValues = z.infer<typeof updateOrganizationSchema>;

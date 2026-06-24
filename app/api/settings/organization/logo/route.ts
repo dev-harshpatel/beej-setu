@@ -7,8 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
 const BUCKET = "org-logos";
-const MAX_SIZE_BYTES = 2 * 1024 * 1024; // matches the bucket's file_size_limit
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const MAX_SIZE_BYTES = 5 * 1024 * 1024; // matches the bucket's file_size_limit
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
 
 // Each org's logos live under <orgId>/ — remove everything there so
 // replaced/deleted logos don't pile up as orphaned objects.
@@ -24,7 +24,7 @@ async function saveLogoUrl(db: SupabaseClient<Database>, orgId: string, logoUrl:
     .from("organizations")
     .update({ logo_url: logoUrl, updated_at: new Date().toISOString() })
     .eq("id", orgId)
-    .select("id, name, slug, logo_url, status")
+    .select("id, name, slug, logo_url, address, gst_number, phone, email, seed_licence_number, status")
     .single();
 }
 
@@ -41,10 +41,10 @@ export const POST = withAuth(
       return apiError("file is required", 400);
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return apiError("Logo must be a PNG, JPEG, or WebP image", 422);
+      return apiError("Logo must be a PNG, JPEG, WebP, GIF, or SVG image", 422);
     }
     if (file.size > MAX_SIZE_BYTES) {
-      return apiError("Logo must be 2 MB or smaller", 422);
+      return apiError("Logo must be 5 MB or smaller", 422);
     }
 
     const db = getSupabaseAdminClient();
@@ -53,7 +53,11 @@ export const POST = withAuth(
 
     // Timestamped filename → new URL on every upload, so no stale
     // browser/CDN cache after a logo change.
-    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const ext =
+      file.type === "image/png" ? "png" :
+      file.type === "image/webp" ? "webp" :
+      file.type === "image/gif" ? "gif" :
+      file.type === "image/svg+xml" ? "svg" : "jpg";
     const path = `${orgId}/logo-${Date.now()}.${ext}`;
 
     const { error: uploadError } = await db.storage

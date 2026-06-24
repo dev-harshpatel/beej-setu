@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   ClipboardListIcon,
   PencilIcon,
+  PrinterIcon,
   XIcon,
 } from "lucide-react";
 import {
@@ -24,9 +25,11 @@ import { OrderBackorderPanel } from "./drawer/order-backorder-panel";
 import { OrderItemsTable, type ItemEditState } from "./drawer/order-items-table";
 import { OrderDrawerActions } from "./drawer/order-drawer-actions";
 import { OrderDrawerHistory } from "./drawer/order-drawer-history";
+import { ShareWhatsAppButton } from "@/components/shared/share-whatsapp-button";
 import {
   ORDER_STATUSES,
   CHALLAN_ELIGIBLE_STATUSES,
+  CHALLAN_VIEWABLE_STATUSES,
   type OrderStatusValue,
 } from "@/constants/order-status.constants";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -34,6 +37,16 @@ import { formatDateMedium } from "@/lib/utils";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import type { OrderWithRelations } from "@/types/order.types";
 import { orderService } from "@/services/order.service";
+import { buildOrderWhatsAppMessage, buildApprovalWhatsAppMessage } from "@/lib/whatsapp";
+
+const ORDER_PLACED_STATUSES: OrderStatusValue[] = [ORDER_STATUSES.PENDING, ORDER_STATUSES.HOLD];
+const ORDER_APPROVED_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUSES.APPROVED,
+  ORDER_STATUSES.PARTIALLY_APPROVED,
+  ORDER_STATUSES.GODOWN_DISPATCHED,
+  ORDER_STATUSES.TRANSPORT_DISPATCHED,
+  ORDER_STATUSES.SHIPPED,
+];
 
 type OrderUnit = "Bag" | "Packet" | "Box";
 type ItemEdit = { quantity: number; unit: OrderUnit };
@@ -215,6 +228,35 @@ export function OrderDetailDrawer({
   if (!order) return null;
 
   const canCreateChallan = CHALLAN_ELIGIBLE_STATUSES.includes(order.status as OrderStatusValue);
+  const canViewChallan = CHALLAN_VIEWABLE_STATUSES.includes(order.status as OrderStatusValue);
+
+  const status = order.status as OrderStatusValue;
+  const shareItems = (order.items ?? []).map((item) => ({
+    cropName:    item.seed?.crops?.name ?? "—",
+    seedName:    item.seed?.variety ?? "—",
+    unit:        item.unit,
+    quantity:    item.quantity,
+    batchNumber: item.batch_number ?? undefined,
+  }));
+  const shareMessage = !order.dealer
+    ? null
+    : ORDER_APPROVED_STATUSES.includes(status)
+    ? buildApprovalWhatsAppMessage({
+        orderNumber:   order.order_number,
+        dealer:        order.dealer!,
+        transportName: order.transport_name ?? undefined,
+        notes:         order.notes ?? undefined,
+        items:         shareItems,
+      })
+    : ORDER_PLACED_STATUSES.includes(status)
+    ? buildOrderWhatsAppMessage({
+        dealer:        order.dealer!,
+        staffName:     order.staff?.name ?? undefined,
+        transportName: order.transport_name ?? undefined,
+        notes:         order.notes ?? undefined,
+        items:         shareItems,
+      })
+    : null;
 
   const backorderItems = (order.items ?? []).filter(
     (i) => (i.requested_quantity ?? i.quantity) > i.quantity,
@@ -261,6 +303,24 @@ export function OrderDetailDrawer({
                   <ClipboardListIcon className="size-3.5" />
                   <span className="hidden sm:inline">Create Challan</span>
                 </Button>
+              )}
+              {canViewChallan && mode === "view" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onCreateChallan(order)}
+                >
+                  <PrinterIcon className="size-3.5" />
+                  <span className="hidden sm:inline">View / Print Challan</span>
+                </Button>
+              )}
+              {shareMessage && mode === "view" && (
+                <ShareWhatsAppButton
+                  message={shareMessage}
+                  label="Share on WhatsApp"
+                  dialogTitle="Share on WhatsApp"
+                  panelSubtitle="Resend this order's WhatsApp message to your group."
+                />
               )}
               <Button variant="ghost" size="icon-sm" onClick={handleClose}>
                 <XIcon className="size-4" />

@@ -6,7 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ShareWhatsAppButton } from "@/components/shared/share-whatsapp-button";
 import { formatCurrency } from "@/lib/utils";
+import { buildCollectionWhatsAppMessage } from "@/lib/whatsapp";
 import { PAYMENT_MODE_LABELS } from "@/constants/payment.constants";
 import type { PaymentMode } from "@/types/database.types";
 import type { CollectionWithRelations } from "@/lib/database/collections.queries";
@@ -100,6 +102,20 @@ export function CollectionsTable({ collections, loading, onEdit, onDelete }: Pro
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-1">
+                  <ShareWhatsAppButton
+                    iconOnly
+                    label="Resend on WhatsApp"
+                    dialogTitle="Share on WhatsApp"
+                    panelSubtitle="Resend this collection's WhatsApp message to your group."
+                    message={buildCollectionWhatsAppMessage({
+                      dealerName:     col.dealer?.name ?? "—",
+                      amount:         col.amount,
+                      paymentMode:    col.payment_mode,
+                      collectionDate: col.collection_date,
+                      staffName:      col.staff?.name ?? undefined,
+                      notes:          col.notes ?? undefined,
+                    })}
+                  />
                   <button
                     onClick={() => onEdit(col)}
                     title="Edit"

@@ -39,6 +39,17 @@ export const challanService = {
     }
   },
 
+  async getChallanPdfBlob(orderId: string): Promise<Blob> {
+    try {
+      const { data } = await apiClient.get<Blob>(`/challans/${orderId}/pdf`, {
+        responseType: "blob",
+      });
+      return data;
+    } catch (err) {
+      throw new Error(getApiErrorMessage(err, "Failed to generate challan PDF."));
+    }
+  },
+
   async dispatchTransport(orderId: string, payload: TransportDispatchPayload): Promise<ChallanRow> {
     try {
       const { data } = await apiClient.patch<ApiResponse<ChallanRow>>(`/challans/${orderId}`, {

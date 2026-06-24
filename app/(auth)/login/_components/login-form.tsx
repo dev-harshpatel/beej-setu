@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loginSchema, type LoginFormValues } from "@/lib/validators/auth.validators";
 import { useAuthStore } from "@/store/auth.store";
+import { ROLES } from "@/constants/roles.constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/form/password-input";
@@ -52,7 +53,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"form">)
 
       const { user, session } = json.data;
       setAuth(user, session);
-      router.push(ROUTES.DASHBOARD.ROOT);
+      router.push(user.role === ROLES.DISPATCH_STAFF ? ROUTES.ORDERS.ROOT : ROUTES.DASHBOARD.ROOT);
     } catch {
       setServerError("Something went wrong. Please try again.");
     }

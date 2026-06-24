@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useGlobalLoader } from "@/hooks/use-global-loader";
 import { PERMISSIONS } from "@/constants/roles.constants";
 import { useStockLedgerFilters } from "../_lib/use-stock-ledger-filters";
 import { useStockLedgerData } from "../_lib/use-stock-ledger-data";
@@ -15,6 +16,7 @@ import { BatchMovementTimeline } from "./batch-movement-timeline";
 export function StockLedgerPage() {
   const router = useRouter();
   const { hasPermission } = usePermissions();
+  const { withLoader } = useGlobalLoader();
 
   const {
     filters, selectedBatch, movementPage, dateFrom, dateTo, hasFilters,
@@ -39,8 +41,27 @@ export function StockLedgerPage() {
     exportToCsv(movementsData.movements, selectedBatch.batch_number);
   }
 
+  async function handlePrint() {
+    if (!selectedBatch) return;
+    await withLoader(async () => {
+      const params = new URLSearchParams({
+        seedId:      selectedBatch.seed_id,
+        batchNumber: selectedBatch.batch_number,
+      });
+      const res  = await fetch(`/api/stock/print?${params}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `${selectedBatch.batch_number}-ledger.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, "Generating PDF…");
+  }
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-8">
       <StockLedgerFilters
         filters={filters}
         crops={crops}
@@ -70,7 +91,7 @@ export function StockLedgerPage() {
             summary={movementsData.summary}
             reconciliation={reconciliation}
             onExportCsv={handleExportCsv}
-            onPrint={() => window.print()}
+            onPrint={handlePrint}
           />
           <BatchMovementTimeline
             movements={movementsData.movements}

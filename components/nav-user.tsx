@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useGlobalLoader } from "@/hooks/use-global-loader";
 import { getInitials } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/constants/routes.constants";
@@ -25,12 +26,15 @@ import { ROUTES } from "@/constants/routes.constants";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { user, clearAuth } = useAuth();
+  const { withLoader } = useGlobalLoader();
   const router = useRouter();
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    clearAuth();
-    router.push(ROUTES.AUTH.LOGIN);
+    await withLoader(async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      clearAuth();
+      router.push(ROUTES.AUTH.LOGIN);
+    }, "Logging out…");
   }
 
   if (!user) return null;

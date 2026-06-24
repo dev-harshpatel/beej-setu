@@ -34,16 +34,24 @@ export function useLogoUpload({ onApply, onError, onActionStart }: UseLogoUpload
     const file = e.target.files?.[0] ?? null;
     e.target.value = ""; // allow re-picking the same file
     if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      onError("Logo must be a PNG, JPEG, or WebP image");
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"].includes(file.type)) {
+      onError("Logo must be a PNG, JPEG, WebP, GIF, or SVG image");
       return;
     }
     onActionStart();
+
+    // SVGs are vector — cropping them to a raster doesn't make sense, so
+    // upload the original file as-is and skip the cropper entirely.
+    if (file.type === "image/svg+xml") {
+      void uploadLogo(file);
+      return;
+    }
+
     closeCropper(); // revoke any previous pick
     setPendingImageSrc(URL.createObjectURL(file));
   }
 
-  async function onCropped(blob: Blob) {
+  async function uploadLogo(blob: Blob) {
     setLogoBusy(true);
     try {
       const next = await settingsService.uploadOrganizationLogo(blob);
@@ -54,6 +62,10 @@ export function useLogoUpload({ onApply, onError, onActionStart }: UseLogoUpload
       closeCropper();
       setLogoBusy(false);
     }
+  }
+
+  async function onCropped(blob: Blob) {
+    await uploadLogo(blob);
   }
 
   async function onRemoveLogo() {

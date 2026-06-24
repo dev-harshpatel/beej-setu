@@ -51,7 +51,13 @@ export async function proxy(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages (page routes only)
   if (user && isPublicRoute && !isApiRoute) {
-    return NextResponse.redirect(new URL(ROUTES.DASHBOARD.ROOT, request.url));
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    const homeRoute = profile?.role === "DISPATCH_STAFF" ? ROUTES.ORDERS.ROOT : ROUTES.DASHBOARD.ROOT;
+    return NextResponse.redirect(new URL(homeRoute, request.url));
   }
 
   return response;

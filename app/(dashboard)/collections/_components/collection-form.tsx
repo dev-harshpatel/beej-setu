@@ -132,13 +132,15 @@ export function CollectionForm({ dealerOptions, onCreated }: CollectionFormProps
             </div>
           </DialogHeader>
           {whatsappMessage && (
-            <WhatsAppSharePanel
-              message={whatsappMessage}
-              title="Share on WhatsApp"
-              subtitle="Copy the message or tap Open WhatsApp to share with your group."
-              doneLabel="Done"
-              onDone={() => setWhatsappMessage(null)}
-            />
+            <div className="px-6 py-5">
+              <WhatsAppSharePanel
+                message={whatsappMessage}
+                title="Share on WhatsApp"
+                subtitle="Copy the message or tap Open WhatsApp to share with your group."
+                doneLabel="Done"
+                onDone={() => setWhatsappMessage(null)}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -58,6 +58,7 @@ export function useStockLedgerData({
     },
     enabled: hasFilters,
     placeholderData: keepPreviousData,
+    staleTime: 2 * 60_000,
   });
 
   const { data: movementsData, isFetching: movementsFetching } = useQuery<{
@@ -89,6 +90,7 @@ export function useStockLedgerData({
     },
     enabled: !!selectedBatch,
     placeholderData: keepPreviousData,
+    staleTime: 2 * 60_000,
   });
 
   const { data: reconciliation = null } = useQuery<ReconciliationResult | null>({
@@ -108,6 +110,7 @@ export function useStockLedgerData({
       return json.data as ReconciliationResult;
     },
     enabled: !!selectedBatch,
+    staleTime: 2 * 60_000,
   });
 
   return { crops, seedProducts, batches, batchesFetching, movementsData, movementsFetching, reconciliation };

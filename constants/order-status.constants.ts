@@ -57,3 +57,10 @@ export const CHALLAN_ELIGIBLE_STATUSES: OrderStatusValue[] = [
 export const TRANSPORT_UPDATE_ELIGIBLE_STATUSES: OrderStatusValue[] = [
   ORDER_STATUSES.GODOWN_DISPATCHED,
 ];
+
+// Statuses for which a challan already exists and can be viewed/printed/reprinted
+export const CHALLAN_VIEWABLE_STATUSES: OrderStatusValue[] = [
+  ORDER_STATUSES.GODOWN_DISPATCHED,
+  ORDER_STATUSES.TRANSPORT_DISPATCHED,
+  ORDER_STATUSES.SHIPPED,
+];

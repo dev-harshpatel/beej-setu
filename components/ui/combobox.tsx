@@ -78,7 +78,7 @@ export function Combobox({
           />
         }
       >
-        <span className={wrap ? "whitespace-normal" : "truncate"}>{selected ? selected.label : placeholder}</span>
+        <span className="truncate">{selected ? selected.label : placeholder}</span>
         <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground ml-1" />
       </PopoverTrigger>
 

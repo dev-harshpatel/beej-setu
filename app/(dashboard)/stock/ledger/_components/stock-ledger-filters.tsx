@@ -4,6 +4,7 @@ import { XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import type { CropRow } from "@/types/database.types";
 import type { SeedProductWithCropRow } from "@/lib/database/seeds.queries";
 
@@ -42,10 +43,13 @@ export function StockLedgerFilters({ filters, crops, seedProducts, onChange }: P
     )
   ).sort();
 
-  const selectedCrop = crops.find((c) => c.id === filters.cropId);
+  const cropItems = [
+    { value: "", label: "All Crops" },
+    ...crops.map((c) => ({ value: c.id, label: c.name })),
+  ];
 
-  function handleCropChange(value: string | null) {
-    onChange({ cropId: !value || value === "all" ? "" : value, variety: "", packSize: "", batchNumber: "" });
+  function handleCropChange(value: string) {
+    onChange({ cropId: value, variety: "", packSize: "", batchNumber: "" });
   }
 
   function handleVarietyChange(value: string | null) {
@@ -66,19 +70,16 @@ export function StockLedgerFilters({ filters, crops, seedProducts, onChange }: P
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select value={filters.cropId || "all"} onValueChange={handleCropChange}>
-        <SelectTrigger className="h-9 w-full sm:w-40">
-          <span className="flex-1 text-left text-sm truncate">
-            {selectedCrop ? selectedCrop.name : <span className="text-muted-foreground">All Crops</span>}
-          </span>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Crops</SelectItem>
-          {crops.map((c) => (
-            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        items={cropItems}
+        value={filters.cropId}
+        onValueChange={handleCropChange}
+        placeholder="All Crops"
+        searchPlaceholder="Search crops…"
+        className="h-9 w-full sm:w-56"
+        popoverClassName="min-w-56"
+        wrap
+      />
 
       <Select
         value={filters.variety || "all"}

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RealtimeProvider } from "@/contexts/realtime-context";
 import { RealtimeInvalidationBridge } from "@/hooks/use-realtime-invalidation";
+import { GlobalLoadingOverlay } from "@/components/global-loading-overlay";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -31,6 +32,7 @@ export function Providers({ children }: { children: ReactNode }) {
         {/* Headless bridge: watches version counters, calls invalidateQueries */}
         <RealtimeInvalidationBridge />
         {children}
+        <GlobalLoadingOverlay />
       </RealtimeProvider>
     </QueryClientProvider>
   );

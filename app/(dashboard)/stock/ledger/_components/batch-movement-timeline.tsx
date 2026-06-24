@@ -2,8 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { cn, formatDateMedium as fmtDate } from "@/lib/utils";
 import { MOVEMENT_TYPE_BADGE, MOVEMENT_TYPE_SIGN, fmtQty } from "../_lib/stock-ledger-utils";
@@ -33,7 +32,7 @@ export function BatchMovementTimeline({
     <thead className="sticky top-0 z-10 [&_th]:bg-card">
       <tr className="border-b border-border text-left text-sm">
         <th className="px-3 py-2 font-medium text-muted-foreground w-28">Date</th>
-        <th className="px-3 py-2 font-medium text-muted-foreground w-32">Type</th>
+        <th className="px-3 py-2 font-medium text-muted-foreground w-40">Type</th>
         <th className="px-3 py-2 font-medium text-muted-foreground text-right w-36">Quantity</th>
         <th className="px-3 py-2 font-medium text-muted-foreground text-right w-36">Balance After</th>
         <th className="px-3 py-2 font-medium text-muted-foreground">Actor</th>
@@ -47,19 +46,23 @@ export function BatchMovementTimeline({
       {/* Date range filter */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground shrink-0">From</Label>
-          <Input
-            type="date" className="h-8 text-sm w-36"
+          <span className="text-xs text-muted-foreground shrink-0">From</span>
+          <DatePicker
             value={dateFrom}
-            onChange={(e) => onDateRangeChange(e.target.value, dateTo)}
+            onChange={(v) => onDateRangeChange(v, dateTo)}
+            placeholder="Start date"
+            size="sm"
+            className="w-36"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground shrink-0">To</Label>
-          <Input
-            type="date" className="h-8 text-sm w-36"
+          <span className="text-xs text-muted-foreground shrink-0">To</span>
+          <DatePicker
             value={dateTo}
-            onChange={(e) => onDateRangeChange(dateFrom, e.target.value)}
+            onChange={(v) => onDateRangeChange(dateFrom, v)}
+            placeholder="End date"
+            size="sm"
+            className="w-36"
           />
         </div>
         {(dateFrom || dateTo) && (
@@ -102,7 +105,7 @@ export function BatchMovementTimeline({
                       {fmtDate(m.movement_date)}
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", MOVEMENT_TYPE_BADGE[m.movement_type])}>
+                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", MOVEMENT_TYPE_BADGE[m.movement_type])}>
                         {m.movement_type.replace("_", " ")}
                       </span>
                     </td>

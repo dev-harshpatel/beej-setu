@@ -29,10 +29,15 @@ export const PATCH = withAuth(
       .from("organizations")
       .update({
         name: parsed.data.name.trim(),
+        address: parsed.data.address?.trim() || null,
+        gst_number: parsed.data.gstNumber?.trim() || null,
+        phone: parsed.data.phone?.trim() || null,
+        email: parsed.data.email?.trim() || null,
+        seed_licence_number: parsed.data.seedLicenceNumber?.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", orgId)
-      .select("id, name, slug, logo_url, status")
+      .select("id, name, slug, logo_url, address, gst_number, phone, email, seed_licence_number, status")
       .single();
 
     if (error) {

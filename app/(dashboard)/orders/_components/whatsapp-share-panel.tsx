@@ -48,7 +48,7 @@ export function WhatsAppSharePanel({
   }
 
   return (
-    <div className={expand ? "flex flex-1 flex-col gap-5 p-6 min-h-0" : "flex flex-col gap-4"}>
+    <div className={expand ? "flex flex-1 flex-col gap-5 p-6 min-h-0" : "flex flex-col gap-5"}>
       {/* Header */}
       <div className={`flex items-center gap-3 ${expand ? "shrink-0" : ""}`}>
         <div className={`flex shrink-0 items-center justify-center rounded-full bg-[#25D366]/15 ${expand ? "size-10" : "size-9"}`}>
@@ -62,7 +62,7 @@ export function WhatsAppSharePanel({
 
       {/* Message preview */}
       <div className={`rounded-xl border border-border bg-muted/30 overflow-hidden ${expand ? "flex-1 min-h-0 flex flex-col" : ""}`}>
-        <div className={`flex items-center justify-between px-3 py-2 border-b border-border bg-muted/40 ${expand ? "shrink-0" : ""}`}>
+        <div className={`flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/40 ${expand ? "shrink-0" : ""}`}>
           <p className="text-xs font-medium text-muted-foreground">Message Preview</p>
           <button
             type="button"
@@ -76,13 +76,13 @@ export function WhatsAppSharePanel({
             )}
           </button>
         </div>
-        <pre className={`px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono text-foreground ${expand ? "flex-1 overflow-y-auto" : "max-h-52 overflow-y-auto"}`}>
+        <pre className={`px-4 py-4 text-xs leading-relaxed whitespace-pre-wrap break-words font-mono text-foreground ${expand ? "flex-1 overflow-y-auto" : "max-h-60 overflow-y-auto"}`}>
           {message}
         </pre>
       </div>
 
       {/* Actions */}
-      <div className={`flex flex-col ${expand ? "gap-2.5 shrink-0" : "gap-2"}`}>
+      <div className={`flex flex-col gap-2.5 ${expand ? "shrink-0" : ""}`}>
         <Button
           className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#25D366]/90 font-semibold"
           onClick={handleOpenWhatsApp}

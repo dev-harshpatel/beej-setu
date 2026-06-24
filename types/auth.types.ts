@@ -7,6 +7,11 @@ export interface Organization {
   name: string;
   slug: string;
   logoUrl: string | null;
+  address: string | null;
+  gstNumber: string | null;
+  phone: string | null;
+  email: string | null;
+  seedLicenceNumber: string | null;
   status: OrganizationStatusValue;
 }
 

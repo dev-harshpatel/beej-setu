@@ -1,20 +1,20 @@
 import type { Area } from "react-easy-crop";
 
-const OUTPUT_SIZE = 512; // square logos, plenty for a 32px sidebar slot
-
 /**
- * Draws the selected crop area of an image onto a square canvas and
- * returns it as a PNG blob, resized to OUTPUT_SIZE × OUTPUT_SIZE.
+ * Draws the selected crop area of an image onto a canvas and returns it
+ * as a PNG blob, resized to outputWidth × outputHeight.
  */
 export async function getCroppedImageBlob(
   imageSrc: string,
-  cropAreaPixels: Area
+  cropAreaPixels: Area,
+  outputWidth = 512,
+  outputHeight = 512
 ): Promise<Blob> {
   const image = await loadImage(imageSrc);
 
   const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE;
-  canvas.height = OUTPUT_SIZE;
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is not supported in this browser");
@@ -27,8 +27,8 @@ export async function getCroppedImageBlob(
     cropAreaPixels.height,
     0,
     0,
-    OUTPUT_SIZE,
-    OUTPUT_SIZE
+    outputWidth,
+    outputHeight
   );
 
   return new Promise((resolve, reject) => {

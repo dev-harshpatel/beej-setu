@@ -49,8 +49,8 @@ export function AddUserDialog({ onSuccess }: AddUserDialogProps) {
   const isSuperAdmin = user?.role === ROLES.SUPER_ADMIN;
 
   const allowedRoles: Role[] = isSuperAdmin
-    ? [ROLES.STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN]
-    : [ROLES.STAFF, ROLES.ADMIN];
+    ? [ROLES.STAFF, ROLES.DISPATCH_STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN]
+    : [ROLES.STAFF, ROLES.DISPATCH_STAFF, ROLES.ADMIN];
 
   const {
     register,

@@ -10,6 +10,7 @@ import {
   FileTextIcon,
   MapPinIcon,
   PackageIcon,
+  PrinterIcon,
   TruckIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,10 +19,12 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DatePicker } from "@/components/ui/date-picker";
 import { WhatsAppSharePanel } from "@/app/(dashboard)/orders/_components/whatsapp-share-panel";
+import { ShareWhatsAppButton } from "@/components/shared/share-whatsapp-button";
+import { ChallanPreviewDialog } from "./challan-preview-dialog";
 import { OrderStatusBadge } from "../../../_components/order-status-badge";
 import {
-  ORDER_STATUSES,
   CHALLAN_ELIGIBLE_STATUSES,
+  CHALLAN_VIEWABLE_STATUSES,
   TRANSPORT_UPDATE_ELIGIBLE_STATUSES,
 } from "@/constants/order-status.constants";
 import { ROUTES } from "@/constants/routes.constants";
@@ -35,12 +38,6 @@ import type { OrderWithRelations } from "@/types/order.types";
 import type { ChallanRow } from "@/types/database.types";
 import type { OrderStatusValue } from "@/constants/order-status.constants";
 import { challanService } from "@/services/challan.service";
-
-const CHALLAN_LOADED_STATUSES: OrderStatusValue[] = [
-  ORDER_STATUSES.GODOWN_DISPATCHED,
-  ORDER_STATUSES.TRANSPORT_DISPATCHED,
-  ORDER_STATUSES.SHIPPED,
-];
 
 export default function ChallanPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,7 +55,7 @@ export default function ChallanPage() {
     staleTime: 0,
   });
 
-  const needsChallan = order && CHALLAN_LOADED_STATUSES.includes(order.status as OrderStatusValue);
+  const needsChallan = order && CHALLAN_VIEWABLE_STATUSES.includes(order.status as OrderStatusValue);
 
   const { data: challan = null, isLoading: loadingChallan } = useQuery({
     queryKey: ["challan", id],
@@ -111,13 +108,15 @@ function ChallanForm({
   const [transport, setTransport]           = useState(() => challan?.transport_name ?? order.dealer?.default_transport ?? "");
   const [challanNumber, setChallanNumber]   = useState(() => challan?.challan_number ?? `DC-${order.order_number}`);
   const [lrNumber, setLrNumber]             = useState(() => challan?.lr_number ?? "");
-  const godownDate = new Date().toISOString().split("T")[0];
+  const [godownDate, setGodownDate]         = useState(() => challan?.godown_dispatch_date ?? new Date().toISOString().split("T")[0]);
   const [transportDate, setTransportDate]   = useState("");
 
   const [saving, setSaving]           = useState(false);
   const [formError, setFormError]     = useState<string | null>(null);
   const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
   const [whatsappType, setWhatsappType]       = useState<"godown" | "transport" | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pendingWhatsapp, setPendingWhatsapp] = useState<{ msg: string; type: "godown" | "transport" } | null>(null);
 
   const status     = order.status as OrderStatusValue;
   const isCreating = CHALLAN_ELIGIBLE_STATUSES.includes(status);
@@ -136,6 +135,7 @@ function ChallanForm({
 
   async function handleGodownDispatch() {
     if (!challanNumber.trim()) { setFormError("Challan number is required."); return; }
+    if (!godownDate) { setFormError("Godown dispatch date is required."); return; }
     setSaving(true); setFormError(null);
     try {
       await challanService.dispatchGodown({
@@ -145,16 +145,16 @@ function ChallanForm({
         godownDispatchDate:  godownDate,
       });
       const msg = buildGodownDispatchWhatsAppMessage({
-        orderNumber:   order.order_number,
-        challanNumber: challanNumber.trim(),
-        dealer:        order.dealer!,
-        transport:     transport.trim() || undefined,
-        dispatchedBy:  currentUser?.name,
-        notes:         order.notes ?? undefined,
-        items:         buildShareItems(),
+        orderNumber:         order.order_number,
+        godownDispatchDate:  godownDate,
+        dealer:              order.dealer!,
+        transport:           transport.trim() || undefined,
+        dispatchedBy:        currentUser?.name,
+        notes:               order.notes ?? undefined,
+        items:               buildShareItems(),
       });
-      setWhatsappMessage(msg);
-      setWhatsappType("godown");
+      setPendingWhatsapp({ msg, type: "godown" });
+      setPreviewOpen(true);
     } catch (err: unknown) {
       setFormError((err as Error)?.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -173,16 +173,14 @@ function ChallanForm({
       });
       const msg = buildTransportDispatchWhatsAppMessage({
         orderNumber:   order.order_number,
-        challanNumber: challan?.challan_number ?? challanNumber.trim(),
         dealer:        order.dealer!,
         transport:     transport.trim() || undefined,
         lrNumber:      lrNumber.trim() || undefined,
         transportDate,
-        dispatchedBy:  currentUser?.name,
         items:         buildShareItems(),
       });
-      setWhatsappMessage(msg);
-      setWhatsappType("transport");
+      setPendingWhatsapp({ msg, type: "transport" });
+      setPreviewOpen(true);
     } catch (err: unknown) {
       setFormError((err as Error)?.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -220,6 +218,22 @@ function ChallanForm({
 
   return (
     <div className="flex flex-col min-h-full">
+      <ChallanPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        orderId={order.id}
+        challanNumber={challan?.challan_number ?? challanNumber}
+        onContinue={
+          pendingWhatsapp
+            ? () => {
+                setWhatsappMessage(pendingWhatsapp.msg);
+                setWhatsappType(pendingWhatsapp.type);
+                setPendingWhatsapp(null);
+              }
+            : undefined
+        }
+      />
+
       <PageHeader onBack={() => router.back()} orderNumber={order.order_number} />
 
       <div className="flex-1 overflow-y-auto">
@@ -393,18 +407,69 @@ function ChallanForm({
                   {challan.lr_number && (
                     <InfoRow label="LR Number" value={challan.lr_number} />
                   )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    <PrinterIcon className="size-4" />
+                    View / Print Challan
+                  </Button>
+                  <ShareWhatsAppButton
+                    message={buildGodownDispatchWhatsAppMessage({
+                      orderNumber:        order.order_number,
+                      godownDispatchDate: challan.godown_dispatch_date,
+                      dealer:             order.dealer!,
+                      transport:          challan.transport_name ?? undefined,
+                      notes:              order.notes ?? undefined,
+                      items:              buildShareItems(),
+                    })}
+                    label="Resend Godown Dispatch"
+                    dialogTitle="Share Godown Dispatch"
+                    panelSubtitle="Resend dispatch details to the group via WhatsApp."
+                    className="w-full"
+                  />
+                  {challan.transport_dispatch_date && (
+                    <ShareWhatsAppButton
+                      message={buildTransportDispatchWhatsAppMessage({
+                        orderNumber:   order.order_number,
+                        dealer:        order.dealer!,
+                        transport:     challan.transport_name ?? undefined,
+                        lrNumber:      challan.lr_number ?? undefined,
+                        transportDate: challan.transport_dispatch_date,
+                        items:         buildShareItems(),
+                      })}
+                      label="Resend Transport Dispatch"
+                      dialogTitle="Share Transport Dispatch"
+                      panelSubtitle="Resend dispatch details to the group via WhatsApp."
+                      className="w-full"
+                    />
+                  )}
                 </div>
               )}
 
               {isCreating && (
-                <FormField label="Challan Number" required>
-                  <Input
-                    value={challanNumber}
-                    onChange={(e) => setChallanNumber(e.target.value)}
-                    placeholder="e.g. DC-1001"
-                    className="font-mono"
-                  />
-                </FormField>
+                <>
+                  <FormField label="Challan Number" required>
+                    <Input
+                      value={challanNumber}
+                      onChange={(e) => setChallanNumber(e.target.value)}
+                      placeholder="e.g. DC-1001"
+                      className="font-mono"
+                    />
+                  </FormField>
+
+                  <FormField label="Godown Dispatch Date" required>
+                    <DatePicker
+                      value={godownDate}
+                      onChange={setGodownDate}
+                      placeholder="Select date"
+                      className="w-full"
+                    />
+                  </FormField>
+                </>
               )}
 
               {isUpdating && (

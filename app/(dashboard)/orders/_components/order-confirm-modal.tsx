@@ -115,9 +115,7 @@ export function OrderConfirmModal({
       const msg = buildApprovalWhatsAppMessage({
         orderNumber:   order.order_number,
         dealer:        order.dealer!,
-        staffName:     order.staff?.name,
         approvedBy:    currentUser?.name,
-        center:        order.center ?? undefined,
         transportName: order.transport_name ?? undefined,
         notes:         order.notes ?? undefined,
         items: (order.items ?? []).map((item) => ({
