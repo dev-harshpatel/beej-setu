@@ -13,7 +13,7 @@ export const createUserSchema = z.object({
     .string()
     .min(6, "Password must be at least 6 characters")
     .max(72),
-  role: z.enum([ROLES.STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN]),
+  role: z.enum([ROLES.STAFF, ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.DISPATCH_STAFF]),
   territory: z.string().max(100).nullable().optional(),
 });
 

@@ -126,8 +126,9 @@ export const stockQueries = {
     if (error) throw error;
   },
 
-  // Row-by-row insert with per-row error collection.
-  // Requires a product lookup; a bad row fails only that row, not the whole batch.
+  // Row-by-row upsert with per-row error collection.
+  // Match key: seed_id + batch_number (mirrors the UNIQUE constraint).
+  // Existing entries are updated if bag_stock/packet_stock/notes/movement_date changed; new ones are inserted.
   async bulkInsert(
     db: SupabaseClient<Database>,
     orgId: string,
@@ -148,6 +149,19 @@ export const stockQueries = {
       const cropName = (p.crop as { name: string } | null)?.name ?? "";
       const key = `${cropName.trim().toLowerCase()}|||${p.variety.trim().toLowerCase()}|||${p.pack_size.trim().toLowerCase()}`;
       productMap.set(key, p.id);
+    }
+
+    // One fetch for all existing stock entries — build a lookup map seedId|||batchNumber → row
+    const { data: existingStock, error: stockErr } = await db
+      .from("seed_stock")
+      .select("id, seed_id, batch_number, bag_stock, packet_stock, notes, movement_date")
+      .eq("organization_id", orgId);
+    if (stockErr) throw stockErr;
+
+    type ExistingStock = NonNullable<typeof existingStock>[number];
+    const existingStockMap = new Map<string, ExistingStock>();
+    for (const s of existingStock ?? []) {
+      existingStockMap.set(`${s.seed_id}|||${s.batch_number}`, s);
     }
 
     const results: StockBulkUploadResult[] = [];
@@ -181,27 +195,65 @@ export const stockQueries = {
         continue;
       }
 
-      const { error: insertErr } = await db.from("seed_stock").insert({
-        organization_id: orgId,
-        seed_id:         seedId,
-        batch_number:    toBatchCode(row.batch_number),
-        bag_stock:       Number(row.bag_stock)    || 0,
-        packet_stock:    Number(row.packet_stock) || 0,
-        last_updated_by: userId,
-        notes:           row.notes?.trim()         || null,
-        movement_date:   row.movement_date?.trim() || null,
-      });
+      const normalizedBatch  = toBatchCode(row.batch_number);
+      const newBagStock      = Number(row.bag_stock)    || 0;
+      const newPacketStock   = Number(row.packet_stock) || 0;
+      const newNotes         = row.notes?.trim()         || null;
+      const newMovementDate  = row.movement_date?.trim() || null;
 
-      if (insertErr) {
-        const msg = insertErr.message.includes("duplicate")
-          ? `Batch "${row.batch_number}" already exists for this product`
-          : insertErr.message;
-        results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: false, message: msg });
-        continue;
+      const existing = existingStockMap.get(`${seedId}|||${normalizedBatch}`);
+
+      if (existing) {
+        const hasChanges =
+          existing.bag_stock      !== newBagStock     ||
+          existing.packet_stock   !== newPacketStock  ||
+          existing.notes          !== newNotes        ||
+          existing.movement_date  !== newMovementDate;
+
+        if (!hasChanges) {
+          results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: true, message: "No changes, skipped" });
+          continue;
+        }
+
+        const { error: updateErr } = await db
+          .from("seed_stock")
+          .update({
+            bag_stock:       newBagStock,
+            packet_stock:    newPacketStock,
+            notes:           newNotes,
+            movement_date:   newMovementDate,
+            last_updated_by: userId,
+            updated_at:      new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+
+        if (updateErr) {
+          results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: false, message: updateErr.message });
+          continue;
+        }
+
+        successCount++;
+        results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: true, message: "Updated" });
+      } else {
+        const { error: insertErr } = await db.from("seed_stock").insert({
+          organization_id: orgId,
+          seed_id:         seedId,
+          batch_number:    normalizedBatch,
+          bag_stock:       newBagStock,
+          packet_stock:    newPacketStock,
+          last_updated_by: userId,
+          notes:           newNotes,
+          movement_date:   newMovementDate,
+        });
+
+        if (insertErr) {
+          results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: false, message: insertErr.message });
+          continue;
+        }
+
+        successCount++;
+        results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: true, message: "Created" });
       }
-
-      successCount++;
-      results.push({ row: rowNum, crop_name: row.crop_name, variety: row.variety, batch_number: row.batch_number, success: true, message: "Created" });
     }
 
     return { results, successCount };

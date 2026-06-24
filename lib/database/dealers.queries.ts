@@ -13,6 +13,7 @@ export interface DealerBulkUploadRow {
   name: string;
   contact?: string;
   territory?: string;
+  center?: string;
   staff_username?: string;
   default_transport?: string;
   notes?: string;
@@ -137,8 +138,10 @@ export const dealersQueries = {
     if (error) throw error;
   },
 
-  // Row-by-row insert with per-row error collection — a bad row never
+  // Row-by-row upsert with per-row error collection — a bad row never
   // fails the whole batch (matches the bulk-upload UX).
+  // Match key: normalized dealer name (toTitleCase) within the org.
+  // Existing non-deleted dealers are updated if any field changed; new ones are inserted.
   async bulkInsert(
     db: SupabaseClient<Database>,
     orgId: string,
@@ -170,6 +173,21 @@ export const dealersQueries = {
       }
     }
 
+    // Fetch all existing non-deleted dealers for this org in one query
+    const { data: existingDealers, error: existErr } = await db
+      .from("dealers")
+      .select("id, name, contact, staff_id, territory, center, default_transport, notes")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null);
+    if (existErr) throw existErr;
+
+    // Map by lowercase normalized name for O(1) lookup
+    type ExistingDealer = NonNullable<typeof existingDealers>[number];
+    const existingByName = new Map<string, ExistingDealer>();
+    for (const d of existingDealers ?? []) {
+      existingByName.set(d.name.toLowerCase(), d);
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNum = i + 1;
@@ -186,25 +204,73 @@ export const dealersQueries = {
         continue;
       }
 
-      const { error: insertErr } = await db.from("dealers").insert({
-        organization_id:   orgId,
-        name:              toTitleCase(row.name),
-        contact:           row.contact?.trim()                              || null,
-        staff_id:          staff?.id ?? null,
-        // Like the dealer form, fall back to the assigned staff's territory
-        territory:         row.territory?.trim()     ? toTitleCase(row.territory)      : staff?.territory ?? null,
-        default_transport: row.default_transport?.trim() ? toTitleCase(row.default_transport) : null,
-        notes:             row.notes?.trim()                                || null,
-      });
+      const normalizedName    = toTitleCase(row.name);
+      const newContact        = row.contact?.trim()             || null;
+      const newStaffId        = staff?.id                       ?? null;
+      const newTerritory      = row.territory?.trim()           ? toTitleCase(row.territory)           : (staff?.territory ?? null);
+      const newCenter         = row.center?.trim()              ? toTitleCase(row.center)              : null;
+      const newTransport      = row.default_transport?.trim()   ? toTitleCase(row.default_transport)   : null;
+      const newNotes          = row.notes?.trim()               || null;
 
-      if (insertErr) {
-        console.error(`dealers bulkInsert row ${rowNum} error:`, insertErr.message);
-        results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: friendlyDbErrorMessage(insertErr, "dealer") });
-        continue;
+      const existing = existingByName.get(normalizedName.toLowerCase());
+
+      if (existing) {
+        const hasChanges =
+          existing.contact          !== newContact   ||
+          existing.staff_id         !== newStaffId   ||
+          existing.territory        !== newTerritory ||
+          existing.center           !== newCenter    ||
+          existing.default_transport !== newTransport ||
+          existing.notes            !== newNotes;
+
+        if (!hasChanges) {
+          results.push({ row: rowNum, name: row.name, contact: row.contact, success: true, message: "No changes, skipped" });
+          continue;
+        }
+
+        const { error: updateErr } = await db
+          .from("dealers")
+          .update({
+            contact:           newContact,
+            staff_id:          newStaffId,
+            territory:         newTerritory,
+            center:            newCenter,
+            default_transport: newTransport,
+            notes:             newNotes,
+            updated_at:        new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+
+        if (updateErr) {
+          console.error(`dealers bulkInsert row ${rowNum} update error:`, updateErr.message);
+          results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: friendlyDbErrorMessage(updateErr, "dealer") });
+          continue;
+        }
+
+        successCount++;
+        results.push({ row: rowNum, name: row.name, contact: row.contact, success: true, message: "Updated" });
+      } else {
+        const { error: insertErr } = await db.from("dealers").insert({
+          organization_id:   orgId,
+          name:              normalizedName,
+          contact:           newContact,
+          staff_id:          newStaffId,
+          // Like the dealer form, fall back to the assigned staff's territory
+          territory:         newTerritory,
+          center:            newCenter,
+          default_transport: newTransport,
+          notes:             newNotes,
+        });
+
+        if (insertErr) {
+          console.error(`dealers bulkInsert row ${rowNum} error:`, insertErr.message);
+          results.push({ row: rowNum, name: row.name, contact: row.contact, success: false, message: friendlyDbErrorMessage(insertErr, "dealer") });
+          continue;
+        }
+
+        successCount++;
+        results.push({ row: rowNum, name: row.name, contact: row.contact, success: true, message: "Created" });
       }
-
-      successCount++;
-      results.push({ row: rowNum, name: row.name, contact: row.contact, success: true, message: "Created" });
     }
 
     return { results, successCount };

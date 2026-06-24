@@ -184,6 +184,10 @@ export default function DealerReportPage() {
                 <p className="font-medium text-sm mt-0.5">{reportDealer.contact}</p>
               </div>
               <div>
+                <p className="text-xs text-muted-foreground">Center</p>
+                <p className="font-medium text-sm mt-0.5">{reportDealer.center ?? "—"}</p>
+              </div>
+              <div>
                 <p className="text-xs text-muted-foreground">Territory</p>
                 <p className="font-medium text-sm mt-0.5">{reportDealer.territory ?? "—"}</p>
               </div>

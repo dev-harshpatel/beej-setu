@@ -106,6 +106,7 @@ export interface Database {
           default_delivery_instruction: string | null;
           delivery_instruction: string | null;
           territory: string | null;
+          center: string | null;
           status: "ACTIVE" | "SUSPENDED" | "TERMINATED";
           notes: string | null;
           created_at: string;
@@ -121,6 +122,7 @@ export interface Database {
           default_delivery_instruction?: string | null;
           delivery_instruction?: string | null;
           territory?: string | null;
+          center?: string | null;
           status?: "ACTIVE" | "SUSPENDED" | "TERMINATED";
           notes?: string | null;
           created_at?: string;

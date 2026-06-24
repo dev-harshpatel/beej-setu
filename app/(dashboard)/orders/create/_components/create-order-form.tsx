@@ -110,7 +110,7 @@ export function CreateOrderForm() {
     setDealerId(dealer.id);
     setDealerOpen(false);
     setDealerSearch("");
-    if (!center && dealer.territory) setCenter(dealer.territory);
+    if (!center && dealer.center) setCenter(dealer.center);
     if (!transportName && dealer.default_transport) setTransportName(dealer.default_transport);
     if (!notes && (dealer.delivery_instruction ?? dealer.default_delivery_instruction)) {
       setNotes((dealer.delivery_instruction ?? dealer.default_delivery_instruction) ?? "");
@@ -368,6 +368,12 @@ export function CreateOrderForm() {
                   <div className="flex items-center gap-1.5">
                     <PhoneIcon className="size-3 shrink-0" />
                     {selectedDealer.contact}
+                  </div>
+                )}
+                {selectedDealer.center && (
+                  <div className="flex items-center gap-1.5">
+                    <MapPinIcon className="size-3 shrink-0" />
+                    {selectedDealer.center}
                   </div>
                 )}
                 {selectedDealer.territory && (

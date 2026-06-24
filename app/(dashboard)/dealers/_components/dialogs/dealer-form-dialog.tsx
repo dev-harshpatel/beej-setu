@@ -34,7 +34,7 @@ export function DealerFormDialog({ open, onOpenChange, dealer, staffList, onSucc
     resolver: zodResolver(schema) as Resolver<CreateDealerFormValues & UpdateDealerFormValues>,
     defaultValues: {
       name: "", contact: "", staffId: null,
-      defaultTransport: "", territory: "",
+      defaultTransport: "", territory: "", center: "",
       status: DEALER_STATUSES.ACTIVE,
     },
   });
@@ -48,6 +48,7 @@ export function DealerFormDialog({ open, onOpenChange, dealer, staffList, onSucc
         staffId:          dealer?.staff_id ?? null,
         defaultTransport: dealer?.default_transport ?? "",
         territory:        dealer?.territory ?? "",
+        center:           dealer?.center ?? "",
         status:           (dealer?.status as DealerStatusValue | undefined) ?? DEALER_STATUSES.ACTIVE,
       });
     }
@@ -125,6 +126,12 @@ export function DealerFormDialog({ open, onOpenChange, dealer, staffList, onSucc
               <Label htmlFor="territory">Territory</Label>
               <Input id="territory" {...register("territory")} placeholder="Saurashtra" />
             </div>
+          </div>
+
+          {/* Center */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="center">Center</Label>
+            <Input id="center" {...register("center")} placeholder="e.g. Ahmedabad Central" />
           </div>
 
           {/* Default Transport */}

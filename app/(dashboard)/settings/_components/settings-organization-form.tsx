@@ -23,6 +23,7 @@ export function SettingsOrganizationForm() {
   const setUser = useAuthStore((s) => s.setUser);
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [logoBroken, setLogoBroken] = useState(false);
 
   const organization = user?.organization;
 
@@ -74,12 +75,14 @@ export function SettingsOrganizationForm() {
           <FieldLabel>Logo</FieldLabel>
           <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-accent text-accent-foreground">
-              {organization?.logoUrl ? (
+              {organization?.logoUrl && !logoBroken ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  key={organization.logoUrl}
                   src={organization.logoUrl}
                   alt=""
                   className="size-full object-contain"
+                  onError={() => setLogoBroken(true)}
                 />
               ) : (
                 <Building2 className="size-5" />

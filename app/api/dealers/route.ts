@@ -38,7 +38,7 @@ export const POST = withAuth(
       return apiError(parsed.error.issues[0]?.message ?? "Invalid input", 400);
     }
 
-    const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, notes } = parsed.data;
+    const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, center, notes } = parsed.data;
     const db = getSupabaseAdminClient();
 
     const dealer = await dealersQueries.create(db, orgId, {
@@ -49,6 +49,7 @@ export const POST = withAuth(
       default_delivery_instruction: defaultDeliveryInstruction ?? null,
       delivery_instruction: deliveryInstruction ?? null,
       territory: territory ?? null,
+      center: center ?? null,
       notes: notes ?? null,
     });
 

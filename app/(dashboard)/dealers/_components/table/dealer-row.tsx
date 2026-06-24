@@ -24,7 +24,7 @@ export function DealerRow({
   checked, onToggle, onEdit, onDelete,
 }: DealerRowProps) {
   const dotClass = STATUS_DOT[dealer.status as DealerStatusValue] ?? "bg-muted";
-  const meta     = [dealer.contact, dealer.territory].filter(Boolean).join(" · ");
+  const meta     = [dealer.contact, dealer.center, dealer.territory].filter(Boolean).join(" · ");
 
   return (
     <TableRow
@@ -81,6 +81,9 @@ export function DealerRow({
       )}
       <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
         {dealer.default_transport ?? <span className="italic opacity-50">—</span>}
+      </TableCell>
+      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+        {dealer.center ?? "—"}
       </TableCell>
       <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
         {dealer.territory ?? "—"}

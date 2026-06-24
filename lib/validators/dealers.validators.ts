@@ -20,6 +20,7 @@ export const createDealerSchema = z.object({
   defaultDeliveryInstruction: z.string().max(500).nullable().optional(),
   deliveryInstruction:        z.string().max(500).nullable().optional(),
   territory:                  nullableTitleCase(z.string().max(100)),
+  center:                     nullableTitleCase(z.string().max(100)),
   notes:                      z.string().max(1000).nullable().optional(),
 });
 

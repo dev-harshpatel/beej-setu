@@ -55,11 +55,12 @@ export const POST = withAuth(
 
     const adminClient = getSupabaseAdminClient();
 
-    // Check if username already exists
+    // Check if username already exists (exclude soft-deleted profiles)
     const { data: existingUser } = await adminClient
       .from("profiles")
       .select("id")
       .eq("username", username.toLowerCase())
+      .is("deleted_at", null)
       .maybeSingle();
 
     if (existingUser) {

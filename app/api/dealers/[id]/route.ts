@@ -33,7 +33,7 @@ export const PATCH = withAuth(
       return apiError(parsed.error.issues[0]?.message ?? "Invalid input", 400);
     }
 
-    const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, notes, status } = parsed.data;
+    const { name, staffId, contact, defaultTransport, defaultDeliveryInstruction, deliveryInstruction, territory, center, notes, status } = parsed.data;
     const db = getSupabaseAdminClient();
 
     const existing = await dealersQueries.getById(db, id, auth.orgId).catch(() => null);
@@ -50,6 +50,7 @@ export const PATCH = withAuth(
       ...(defaultDeliveryInstruction !== undefined && { default_delivery_instruction: defaultDeliveryInstruction }),
       ...(deliveryInstruction !== undefined && { delivery_instruction: deliveryInstruction }),
       ...(territory !== undefined && { territory }),
+      ...(center !== undefined && { center }),
       ...(notes !== undefined && { notes }),
       ...(status !== undefined && { status }),
     });

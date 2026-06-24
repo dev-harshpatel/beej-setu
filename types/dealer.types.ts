@@ -17,6 +17,7 @@ export interface Dealer {
   defaultDeliveryInstruction: string | null;
   deliveryInstruction: string | null;
   territory: string | null;
+  center: string | null;
   status: DealerStatus;
   notes: string | null;
   createdAt: Timestamps["createdAt"];
@@ -36,6 +37,7 @@ export interface CreateDealerPayload {
   defaultDeliveryInstruction?: string | null;
   deliveryInstruction?: string | null;
   territory?: string | null;
+  center?: string | null;
   notes?: string | null;
 }
 
