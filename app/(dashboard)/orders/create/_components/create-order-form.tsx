@@ -355,10 +355,10 @@ export function CreateOrderForm() {
           {selectedDealer && (
             <div className="rounded-lg border border-[var(--accent)] bg-[var(--accent)]/20 px-4 py-3 flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[var(--accent-foreground)]">
+                <p className="text-xs font-semibold text-[var(--accent-foreground)] min-w-0 truncate">
                   {selectedDealer.name}
                 </p>
-                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-[var(--accent-foreground)]/30 text-[var(--accent-foreground)] bg-transparent gap-1">
+                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-[var(--accent-foreground)]/30 text-[var(--accent-foreground)] bg-transparent gap-1 whitespace-nowrap shrink-0">
                   <BadgeCheckIcon className="size-3" />
                   Auto-filled
                 </Badge>

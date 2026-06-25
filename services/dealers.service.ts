@@ -9,6 +9,7 @@ import type {
 export interface DealersListParams {
   page?: number;
   pageSize?: number;
+  search?: string;
   status?: string;
   territory?: string;
   staffId?: string;

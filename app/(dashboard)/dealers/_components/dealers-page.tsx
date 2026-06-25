@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useAuth } from "@/hooks/use-auth";
+import { useDebounce } from "@/hooks/use-debounce";
 import { PERMISSIONS, ROLES } from "@/constants/roles.constants";
 import { PAGINATION_DEFAULTS } from "@/constants/app.constants";
 import { TablePagination } from "@/components/shared/table-pagination";
@@ -34,6 +35,8 @@ export function DealersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters]     = useState<DealerFilters>({ search: "", status: "", territory: "" });
 
+  const debouncedSearch = useDebounce(searchInput, 300);
+
   const [formOpen, setFormOpen]         = useState(false);
   const [editDealer, setEditDealer]     = useState<DealerWithStaffRow | null>(null);
   const [deleteOpen, setDeleteOpen]     = useState(false);
@@ -43,38 +46,18 @@ export function DealersPage() {
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  const { allDealers, loading, staffList, invalidate } = useDealersData({
+  const { dealers, total, loading, territories, staffList, invalidate } = useDealersData({
+    page,
+    pageSize,
+    search: debouncedSearch,
     status: filters.status,
     territory: filters.territory,
     staffListEnabled: canCreate || canEdit,
   });
 
-  const filteredDealers = useMemo(() => {
-    const q = searchInput.trim().toLowerCase();
-    if (!q) return allDealers;
-    return allDealers.filter((d) =>
-      d.name.toLowerCase().includes(q) ||
-      d.contact?.includes(q) ||
-      d.territory?.toLowerCase().includes(q) ||
-      d.staff?.name.toLowerCase().includes(q),
-    );
-  }, [allDealers, searchInput]);
-
-  const total      = filteredDealers.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const dealers    = useMemo(
-    () => filteredDealers.slice((page - 1) * pageSize, page * pageSize),
-    [filteredDealers, page, pageSize],
-  );
-
-  const territories = useMemo(
-    () => [...new Set(allDealers.map((d) => d.territory).filter(Boolean) as string[])],
-    [allDealers],
-  );
-
   const hasFilters = !!(searchInput || filters.status || filters.territory);
 
-  // Search/filter changes reset page + selection in the handlers (not effects)
   function handleSearchChange(value: string) {
     setSearchInput(value);
     setPage(1);

@@ -426,9 +426,9 @@ function ChallanForm({
                       notes:              order.notes ?? undefined,
                       items:              buildShareItems(),
                     })}
-                    label="Resend Godown Dispatch"
-                    dialogTitle="Share Godown Dispatch"
-                    panelSubtitle="Resend dispatch details to the group via WhatsApp."
+                    label="Resend Godown WhatsApp Message"
+                    dialogTitle="Resend Godown WhatsApp Message"
+                    panelSubtitle="Resend the godown dispatch WhatsApp message to the group."
                     className="w-full"
                   />
                   {challan.transport_dispatch_date && (
@@ -441,9 +441,9 @@ function ChallanForm({
                         transportDate: challan.transport_dispatch_date,
                         items:         buildShareItems(),
                       })}
-                      label="Resend Transport Dispatch"
-                      dialogTitle="Share Transport Dispatch"
-                      panelSubtitle="Resend dispatch details to the group via WhatsApp."
+                      label="Resend Transport WhatsApp Message"
+                      dialogTitle="Resend Transport WhatsApp Message"
+                      panelSubtitle="Resend the transport dispatch WhatsApp message to the group."
                       className="w-full"
                     />
                   )}

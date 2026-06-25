@@ -142,6 +142,36 @@ export const dealersQueries = {
   // fails the whole batch (matches the bulk-upload UX).
   // Match key: normalized dealer name (toTitleCase) within the org.
   // Existing non-deleted dealers are updated if any field changed; new ones are inserted.
+  async getDistinctTerritories(
+    db: SupabaseClient<Database>,
+    orgId: string,
+    staffId?: string
+  ): Promise<string[]> {
+    let query = db
+      .from("dealers")
+      .select("territory")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .not("territory", "is", null);
+
+    if (staffId) {
+      query = query.eq("staff_id", staffId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const seen = new Set<string>();
+    for (const row of data ?? []) {
+      if (row.territory) seen.add(row.territory);
+    }
+    return Array.from(seen).sort();
+  },
+
+  // Row-by-row upsert with per-row error collection — a bad row never
+  // fails the whole batch (matches the bulk-upload UX).
+  // Match key: normalized dealer name (toTitleCase) within the org.
+  // Existing non-deleted dealers are updated if any field changed; new ones are inserted.
   async bulkInsert(
     db: SupabaseClient<Database>,
     orgId: string,
