@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DownloadIcon, PlusIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { LinkPendingIcon } from "@/components/shared/link-pending-icon";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -223,9 +224,12 @@ export function OrdersTabs() {
               <>
                 <Link
                   href={ROUTES.ORDERS.CREATE}
-                  className={cn(buttonVariants({ size: "sm" }), "gap-1.5 shrink-0")}
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "gap-1.5 shrink-0 has-[[data-pending]]:pointer-events-none has-[[data-pending]]:opacity-70"
+                  )}
                 >
-                  <PlusIcon className="size-3.5" />
+                  <LinkPendingIcon icon={PlusIcon} className="size-3.5" />
                   <span className="hidden sm:inline">New Order</span>
                 </Link>
                 <Button

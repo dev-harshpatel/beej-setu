@@ -5,6 +5,7 @@ import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-quer
 import Link from "next/link";
 import { PlusIcon, ShoppingBagIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { LinkPendingIcon } from "@/components/shared/link-pending-icon";
 import { cn, formatDateMedium } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -100,9 +101,12 @@ export function StaffOrders() {
           </Button>
           <Link
             href={ROUTES.ORDERS.CREATE}
-            className={cn(buttonVariants({ size: "sm" }), "flex-1 sm:flex-none gap-1.5")}
+            className={cn(
+              buttonVariants({ size: "sm" }),
+              "flex-1 sm:flex-none gap-1.5 has-[[data-pending]]:pointer-events-none has-[[data-pending]]:opacity-70"
+            )}
           >
-            <PlusIcon className="size-4" />
+            <LinkPendingIcon icon={PlusIcon} className="size-4" />
             New Order
           </Link>
         </div>
@@ -172,9 +176,12 @@ export function StaffOrders() {
           <p className="text-sm">No orders found</p>
           <Link
             href={ROUTES.ORDERS.CREATE}
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }), "gap-1.5")}
+            className={cn(
+              buttonVariants({ size: "sm", variant: "outline" }),
+              "gap-1.5 has-[[data-pending]]:pointer-events-none has-[[data-pending]]:opacity-70"
+            )}
           >
-            <PlusIcon className="size-4" />
+            <LinkPendingIcon icon={PlusIcon} className="size-4" />
             Place your first order
           </Link>
         </div>

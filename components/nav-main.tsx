@@ -18,6 +18,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useStoreHydrated } from "@/hooks/use-store-hydrated";
@@ -27,6 +28,7 @@ import type { NavItem } from "@/constants/navigation.constants";
 
 function NavCollapsibleItem({ item, isActive, pathname }: { item: NavItem; isActive: boolean; pathname: string }) {
   const [open, setOpen] = useState(isActive);
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenuItem>
@@ -43,7 +45,7 @@ function NavCollapsibleItem({ item, isActive, pathname }: { item: NavItem; isAct
               return (
                 <SidebarMenuSubItem key={child.label}>
                   <SidebarMenuSubButton
-                    render={<Link href={child.href} />}
+                    render={<Link href={child.href} onClick={() => isMobile && setOpenMobile(false)} />}
                     isActive={childActive}
                   >
                     {child.icon && <child.icon className="size-3.5" />}
@@ -64,6 +66,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
   const { hasPermission } = usePermissions();
   const hydrated = useStoreHydrated();
   const pendingOrdersCount = useDashboardStore((s) => s.pendingOrdersCount);
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const visibleItems = items.filter(
     (item) => !item.permission || hasPermission(item.permission)
@@ -111,7 +114,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
           return (
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
-                render={<Link href={item.href} prefetch={!isActive} />}
+                render={<Link href={item.href} prefetch={!isActive} onClick={() => isMobile && setOpenMobile(false)} />}
                 isActive={isActive}
                 tooltip={item.label}
               >
