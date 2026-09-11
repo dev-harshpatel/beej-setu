@@ -65,6 +65,7 @@ function newRow(): CropRowState {
 export function CreateOrderForm() {
   // Remote data
   const [dealers, setDealers] = useState<DealerRow[]>([]);
+  const [dealersLoading, setDealersLoading] = useState(true);
   const [seeds, setSeeds] = useState<SeedProductWithCropRow[]>([]);
 
   // Section 1
@@ -93,7 +94,8 @@ export function CreateOrderForm() {
     fetch("/api/dealers?pageSize=500&status=ACTIVE")
       .then((r) => r.json())
       .then((json) => setDealers(json.data?.data ?? []))
-      .catch(() => setDealers([]));
+      .catch(() => setDealers([]))
+      .finally(() => setDealersLoading(false));
 
     fetch("/api/seeds?pageSize=500")
       .then((r) => r.json())
@@ -322,7 +324,11 @@ export function CreateOrderForm() {
                     </div>
                   </div>
                   <div className="max-h-52 overflow-y-auto py-1">
-                    {filteredDealers.length === 0 ? (
+                    {dealersLoading ? (
+                      <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                        Loading dealers…
+                      </p>
+                    ) : filteredDealers.length === 0 ? (
                       <p className="px-3 py-4 text-center text-xs text-muted-foreground">
                         No dealers found
                       </p>
