@@ -251,7 +251,6 @@ export function OrderDetailDrawer({
     : ORDER_PLACED_STATUSES.includes(status)
     ? buildOrderWhatsAppMessage({
         dealer:        order.dealer!,
-        staffName:     order.staff?.name ?? undefined,
         transportName: order.transport_name ?? undefined,
         notes:         order.notes ?? undefined,
         items:         shareItems,
