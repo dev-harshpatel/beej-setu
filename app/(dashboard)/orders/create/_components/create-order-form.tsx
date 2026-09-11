@@ -77,6 +77,10 @@ export function CreateOrderForm() {
   const [transportName, setTransportName] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Tracks the last dealer-derived values auto-filled into the fields above,
+  // so switching dealers can safely re-fill them without clobbering a manual edit.
+  const dealerDefaultsRef = useRef({ center: "", transportName: "", notes: "" });
+
   // Section 3
   const [cropRows, setCropRows] = useState<CropRowState[]>([newRow()]);
 
@@ -110,11 +114,19 @@ export function CreateOrderForm() {
     setDealerId(dealer.id);
     setDealerOpen(false);
     setDealerSearch("");
-    if (!center && dealer.center) setCenter(dealer.center);
-    if (!transportName && dealer.default_transport) setTransportName(dealer.default_transport);
-    if (!notes && (dealer.delivery_instruction ?? dealer.default_delivery_instruction)) {
-      setNotes((dealer.delivery_instruction ?? dealer.default_delivery_instruction) ?? "");
-    }
+
+    const defaults = dealerDefaultsRef.current;
+    const nextCenter = dealer.center ?? "";
+    const nextTransport = dealer.default_transport ?? "";
+    const nextNotes = dealer.delivery_instruction ?? dealer.default_delivery_instruction ?? "";
+
+    // Only overwrite a field if it still holds the previous dealer's auto-filled
+    // value (or is empty) — a manual edit is left untouched.
+    if (center === defaults.center) setCenter(nextCenter);
+    if (transportName === defaults.transportName) setTransportName(nextTransport);
+    if (notes === defaults.notes) setNotes(nextNotes);
+
+    dealerDefaultsRef.current = { center: nextCenter, transportName: nextTransport, notes: nextNotes };
   }
 
   // Derived data
