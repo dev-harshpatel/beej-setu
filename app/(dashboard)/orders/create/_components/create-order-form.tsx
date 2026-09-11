@@ -200,6 +200,7 @@ export function CreateOrderForm() {
 
   const canProceed =
     step1Done &&
+    !!notes.trim() &&
     cropRows.length > 0 &&
     cropRows.every((r) => r.seedId && parseInt(r.quantityRaw, 10) >= 1);
 
@@ -419,15 +420,21 @@ export function CreateOrderForm() {
               />
             </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="notes">Delivery Instructions <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="notes">Delivery Instructions</Label>
               <textarea
                 id="notes"
                 rows={2}
                 placeholder="Any delivery instructions…"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 transition-colors"
+                className={cn(
+                  "w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 transition-colors",
+                  !notes.trim() && "border-destructive/50"
+                )}
               />
+              {!notes.trim() && (
+                <span className="text-xs text-destructive">Delivery instructions are required.</span>
+              )}
             </div>
           </div>
         </section>

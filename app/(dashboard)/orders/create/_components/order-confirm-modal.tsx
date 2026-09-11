@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth.store";
 import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import {
   Dialog,
@@ -48,7 +47,6 @@ export function OrderConfirmModal({
   notes,
 }: Props) {
   const router = useRouter();
-  const currentUser = useAuthStore((s) => s.user);
   const [loading, setLoading]         = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState<string | null>(null);
   const [error, setError]             = useState("");
@@ -78,7 +76,7 @@ export function OrderConfirmModal({
         setError(json?.message ?? "Failed to create order. Please try again.");
         return;
       }
-      const message = buildOrderWhatsAppMessage({ dealer: dealer!, staffName: currentUser?.name, center, transportName, notes, items });
+      const message = buildOrderWhatsAppMessage({ dealer: dealer!, transportName, notes, items });
       setWhatsappMessage(message);
     } catch {
       setError("Something went wrong. Please try again.");

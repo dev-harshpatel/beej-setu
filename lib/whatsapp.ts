@@ -12,25 +12,20 @@ export interface OrderShareItem {
 
 export interface OrderShareParams {
   dealer: DealerRow;
-  staffName?: string;
-  center?: string;
   transportName?: string;
   notes?: string;
   items: OrderShareItem[];
 }
 
 export function buildOrderWhatsAppMessage(params: OrderShareParams): string {
-  const { dealer, staffName, center, transportName, notes, items } = params;
+  const { dealer, transportName, notes, items } = params;
   const date = _today();
   const lines: string[] = [];
 
   lines.push(`Date: ${date}`);
   lines.push("");
   lines.push(`*Dealer:* ${dealer.name}`);
-  if (dealer.territory) lines.push(`*Territory:* ${dealer.territory}`);
   if (dealer.contact)   lines.push(`*Contact:* ${dealer.contact}`);
-  if (staffName)        lines.push(`*Order by:* ${staffName}`);
-  if (center)           lines.push(`*Center:* ${center}`);
   if (transportName)    lines.push(`*Transport:* ${transportName}`);
   lines.push("");
   lines.push("*Items:*");

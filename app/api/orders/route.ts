@@ -43,6 +43,9 @@ export const POST = withAuth(
       if (!body?.dealerId || !Array.isArray(body?.items) || body.items.length === 0) {
         return apiError("dealerId and at least one item are required", 400);
       }
+      if (!body?.notes || !String(body.notes).trim()) {
+        return apiError("Delivery instructions are required", 400);
+      }
 
       const db = getSupabaseAdminClient();
 
